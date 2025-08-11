@@ -19,7 +19,7 @@ import subprocess
 from datetime import datetime, timedelta
 import argparse
 
-__version__ = "0.5.25"
+__version__ = "0.5.26"
 
 # Pricing data embedded from https://docs.anthropic.com/en/docs/about-claude/pricing
 # All prices in USD per million tokens
@@ -761,16 +761,18 @@ def calculate_performance_badge(cache_hit_rate, avg_response_time, cache_thresho
         colors = [82, 220, 208, 196]  # ANSI 256-color codes (220 is darker yellow)
         
         if powerline:
-            # Powerline style: colored active dot, black inactive dots
-            dots = []
+            # Powerline style: white background throughout, black dots except for the active one
+            # Build the entire string with continuous white background
+            result = "\033[48;5;244m"  # Start with 50% gray background
             for i in range(4):
                 if i == overall_level:
-                    # Active dot with its color
-                    dots.append(apply_color(active_char, fg_color=colors[i]))
+                    # Active dot - just change foreground color, keep white background
+                    result += f"\033[38;5;{colors[i]}m{active_char}"
                 else:
-                    # Inactive dot - black
-                    dots.append(apply_color(inactive_char, fg_color=0))
-            return "".join(dots)
+                    # Inactive dot - black foreground, keep white background
+                    result += f"\033[38;5;0m{inactive_char}"
+            # Don't add RESET here - let the powerline handler manage that
+            return result
         else:
             # Regular style: colored active dot, gray inactive dots
             gray = 244  # Gray for inactive dots
@@ -1065,8 +1067,8 @@ def format_output(config, model_info, input_data, metrics=None):
                 # For powerline, store segment with its background color
                 bg_color = get_field_color(field, theme_colors)
                 if field == "badge":
-                    # Badge gets white background in powerline mode
-                    bg_color = 15  # White
+                    # Badge gets 50% gray background in powerline mode for better contrast
+                    bg_color = 244  # 50% gray
                 segments.append((field_content, bg_color))
             else:
                 # Regular styling - apply foreground color
@@ -1108,37 +1110,9 @@ def format_output(config, model_info, input_data, metrics=None):
             if bg_color is None:
                 continue
             
-            # Special handling for badge which already has embedded colors
-            if i == 0 and ("○" in text or "o" in text):  # This is the badge (with or without emoji)
-                # Rebuild badge with white background maintained throughout
-                # The text contains ANSI codes that reset, so we need to reconstruct it
-                badge_parts = []
-                badge_parts.append("\033[48;5;15m ")  # Start with white background
-                
-                # Parse the badge to maintain white background
-                import re
-                # Split on ANSI codes but keep them
-                parts = re.split(r'(\033\[[^m]+m)', text)
-                for part in parts:
-                    if part.startswith('\033['):
-                        # This is an ANSI code
-                        if part == '\033[0m':  # Reset code
-                            # Replace reset with just white background
-                            badge_parts.append('\033[48;5;15m')
-                        else:
-                            # Keep the foreground color but ensure white background
-                            badge_parts.append(part)
-                            if '48;5' not in part:  # If no background specified
-                                badge_parts.append('\033[48;5;15m')  # Add white background
-                    else:
-                        # Regular text
-                        badge_parts.append(part)
-                
-                badge_parts.append(f" {RESET}")  # End with space and reset
-                segment_text = "".join(badge_parts)
-            else:
-                # Apply background color and black text to segment
-                segment_text = apply_color(f" {text} ", fg_color=0, bg_color=bg_color)
+            # Apply background color and black text to segment
+            # Badge is now treated the same as all other fields - simple and consistent
+            segment_text = apply_color(f" {text} ", fg_color=0, bg_color=bg_color)
             result.append(segment_text)
             
             # Add separator if not last segment

@@ -1,4 +1,4 @@
-# 🎯 pyccsl - Python Claude Code Status Line
+# 🎯 pyCCsl - Python Claude Code Status Line
 
 <div align="center">
 
@@ -8,13 +8,13 @@
 [![Dependencies](https://img.shields.io/badge/dependencies-zero-brightgreen)](pyccsl.py)
 [![Lines](https://img.shields.io/badge/lines-~1000-lightgrey)](pyccsl.py)
 
-**PYCCSL (Pronounced "Pixel") - An information-rich status line for Claude Code.**
+**pyCCsl** (pronounced "pixel") - An information-rich status line for Claude Code
 
 ![Hero Screenshot](images/hero-default.png)
 
 *Real-time metrics • Cost tracking • Git status • Token usage • 9 themes • Zero dependencies*
 
-📖 **[User Guide](pyccsl.md)** | 🔗 **[GitHub](https://github.com/wolfdenpublishing/pyccsl)** | 📝 **[Issues](https://github.com/wolfdenpublishing/pyccsl/issues)**
+📖 **[User Guide](pyCCsl.md)** | 🔗 **[GitHub](https://github.com/wolfdenpublishing/pyccsl)** | 📝 **[Issues](https://github.com/wolfdenpublishing/pyccsl/issues)**
 
 </div>
 
@@ -272,10 +272,10 @@ Shows only model and cost without colors or emoji.
 
 Want to change your status line without restarting Claude Code? Use an environment file!
 
-1. Create a configuration file `~/.pyccsl.env`:
+1. Create a configuration file `~/.pyCCsl.env`:
 ```bash
 # Copy the example file
-cp pyccsl.env.example ~/.pyccsl.env
+cp pyCCsl.env.example ~/.pyCCsl.env
 ```
 
 2. Configure Claude Code:
@@ -283,14 +283,14 @@ cp pyccsl.env.example ~/.pyccsl.env
 {
   "statusLine": {
     "type": "command",
-    "command": "python3 ~/.claude/pyccsl.py --env ~/.pyccsl.env"
+    "command": "python3 ~/.claude/pyccsl.py --env ~/.pyCCsl.env"
   }
 }
 ```
 
-3. Edit `~/.pyccsl.env` anytime to change settings instantly:
+3. Edit `~/.pyCCsl.env` anytime to change settings instantly:
 ```bash
-# Example ~/.pyccsl.env
+# Example ~/.pyCCsl.env
 PYCCSL_THEME="nord"
 PYCCSL_NUMBERS="full"
 PYCCSL_STYLE="powerline"
@@ -299,7 +299,7 @@ PYCCSL_FIELDS="badge,model,perf-cache-rate,tokens,cost"
 
 Changes take effect immediately on the next status line refresh - no restart required!
 
-The env file is bash-compatible, so you can also source it: `source ~/.pyccsl.env`
+The env file is bash-compatible, so you can also source it: `source ~/.pyCCsl.env`
 </details>
 
 ---
@@ -409,9 +409,9 @@ All cache writes assumed to use 5-minute TTL (Claude Code default).
 ### Project Structure
 
 ```
-pyccsl/
+pyCCsl/
 ├── pyccsl.py             # Main script (single file)
-├── pyccsl.md             # User documentation
+├── pyCCsl.md             # User documentation
 ├── CLAUDE.md             # Development guidelines
 ├── README.md             # This file
 ├── screenshots.md        # Screenshot checklist
@@ -466,7 +466,7 @@ When Claude Code displays system messages (e.g., "Context left until auto-compac
 - Use `--theme minimal` for reduced color usage  
 - Clear the terminal with `clear` or `reset` when this occurs
 
-**Note**: This is a Claude Code limitation where system messages take priority and truncate custom status lines without properly closing escape sequences. There is no fix available from the pyccsl side.
+**Note**: This is a Claude Code limitation where system messages take priority and truncate custom status lines without properly closing escape sequences. There is no fix available from the pyCCsl side.
 
 ---
 
@@ -504,7 +504,7 @@ MIT License - See [LICENSE](LICENSE) file for details
 
 <div align="center">
 
-**pyccsl** - *pronounced "pixel"*
+**pyCCsl** - *pronounced "pixel"*
 
 Python Claude Code Status Line
 

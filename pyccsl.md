@@ -1,10 +1,10 @@
-# pyccsl - Python Claude Code Status Line
+# pyCCsl - Python Claude Code Status Line
 
 > **GitHub Repository**: [https://github.com/wolfdenpublishing/pyccsl](https://github.com/wolfdenpublishing/pyccsl)
 
 ## Overview
 
-`pyccsl` (pronounced "pixel") is a Python-based status line generator for Claude Code that analyzes transcript files to provide performance metrics, session information, and cost calculations. It reads JSON input from stdin and outputs a formatted status line to stdout.
+`pyCCsl` (pronounced "pixel") is a Python-based status line generator for Claude Code that analyzes transcript files to provide performance metrics, session information, and cost calculations. It reads JSON input from stdin and outputs a formatted status line to stdout.
 
 ## Installation
 
@@ -31,7 +31,7 @@
 ## Usage
 
 ```bash
-pyccsl [OPTIONS] [FIELDS]
+pyCCsl [OPTIONS] [FIELDS]
 ```
 
 Options must come first, followed by an optional comma-separated list of fields to display.
@@ -70,9 +70,9 @@ Disable emoji in output (useful for terminals without emoji support).
 ### `--env FILE`
 Load configuration from an environment file. This allows dynamic configuration changes without restarting Claude Code.
 - File format: `VARIABLE=value` (bash-compatible)
-- Example: `--env pyccsl.env`
+- Example: `--env pyCCsl.env`
 - Variables in the env file override command-line arguments
-- See `pyccsl.env.example` for a complete example
+- See `pyCCsl.env.example` for a complete example
 
 ### `--perf-cache GREEN,YELLOW,ORANGE`
 Set cache hit rate thresholds (percentages).
@@ -218,11 +218,11 @@ python3 ~/.claude/pyccsl.py --perf-cache 70,50,30 --perf-response 2,4,6
 {
   "statusLine": {
     "type": "command",
-    "command": "python3 ~/.claude/pyccsl.py --env ~/.pyccsl.env"
+    "command": "python3 ~/.claude/pyccsl.py --env ~/.pyCCsl.env"
   }
 }
 ```
-Then modify `~/.pyccsl.env` anytime to change the status line without restarting Claude Code!
+Then modify `~/.pyCCsl.env` anytime to change the status line without restarting Claude Code!
 
 ## Performance Badge Interpretation
 
