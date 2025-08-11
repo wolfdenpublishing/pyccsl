@@ -12,7 +12,7 @@ import subprocess
 from datetime import datetime, timedelta
 import argparse
 
-__version__ = "0.2.13"
+__version__ = "0.3.0"
 
 # Pricing data embedded from https://docs.anthropic.com/en/docs/about-claude/pricing
 # All prices in USD per million tokens
@@ -171,7 +171,10 @@ def parse_arguments():
     # Parse fields
     if args.fields:
         # Split comma-separated fields and strip whitespace
-        fields = [f.strip() for f in args.fields.split(",")]
+        fields = [f.strip() for f in args.fields.split(",") if f.strip()]
+        # If all fields were empty/whitespace, use defaults
+        if not fields:
+            fields = DEFAULT_FIELDS.copy()
     else:
         fields = DEFAULT_FIELDS.copy()
     
