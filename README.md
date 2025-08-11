@@ -65,16 +65,16 @@
 <table>
 <tr>
 <td align="center">
-<img src="images/theme-nord.png" width="280" alt="Nord Theme"><br>
-<b>Nord</b>
+<img src="images/theme-default.png" width="280" alt="Nord Theme"><br>
+<b>Default</b>
 </td>
 <td align="center">
 <img src="images/theme-dracula.png" width="280" alt="Dracula Theme"><br>
 <b>Dracula</b>
 </td>
 <td align="center">
-<img src="images/theme-tokyo.png" width="280" alt="Tokyo Night"><br>
-<b>Tokyo Night</b>
+<img src="images/theme-nord.png" width="280" alt="Tokyo Night"><br>
+<b>Nord</b>
 </td>
 </tr>
 <tr>
@@ -83,16 +83,17 @@
 <b>Catppuccin</b>
 </td>
 <td align="center">
-<img src="images/theme-solarized.png" width="280" alt="Solarized"><br>
-<b>Solarized</b>
+<img src="images/theme-tokyo.png" width="280" alt="Solarized"><br>
+<b>Tokyo Night</b>
 </td>
 <td align="center">
-<img src="images/theme-gruvbox.png" width="280" alt="Gruvbox"><br>
-<b>Gruvbox</b>
+<img src="images/theme-minimal.png" width="280" alt="Gruvbox"><br>
+<b>Minimal</b>
 </td>
 </tr>
 </table>
 </div>
+
 
 ---
 
