@@ -12,7 +12,7 @@ import subprocess
 from datetime import datetime, timedelta
 import argparse
 
-__version__ = "0.4.15"
+__version__ = "0.4.16"
 
 # Pricing data embedded from https://docs.anthropic.com/en/docs/about-claude/pricing
 # All prices in USD per million tokens
@@ -992,8 +992,8 @@ def format_output(config, model_info, input_data, metrics=None):
                     sep = apply_color(POWERLINE_RIGHT, fg_color=bg_color)
                 result.append(sep)
             else:
-                # Final separator with no background
-                sep = apply_color(POWERLINE_RIGHT, fg_color=bg_color)
+                # Final separator - foreground matches last segment bg, background is default (0 = black)
+                sep = apply_color(POWERLINE_RIGHT, fg_color=bg_color, bg_color=0)
                 result.append(sep)
         
         return "".join(result)
@@ -1069,7 +1069,8 @@ def main():
     
     # Format and output (pass metrics for field display)
     output = format_output(config, model_info, input_data, metrics)
-    print(output)
+    # Always ensure we end with a reset to prevent terminal color bleed
+    print(output + RESET)
     
     return 0
 
