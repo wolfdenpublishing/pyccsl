@@ -12,7 +12,7 @@ import subprocess
 from datetime import datetime, timedelta
 import argparse
 
-__version__ = "0.4.17"
+__version__ = "0.4.18"
 
 # Pricing data embedded from https://docs.anthropic.com/en/docs/about-claude/pricing
 # All prices in USD per million tokens
@@ -242,6 +242,10 @@ FIELD_ORDER = [
 
 def parse_arguments():
     """Parse command-line arguments."""
+    # Debug: print raw sys.argv
+    if "--debug" in sys.argv:
+        sys.stderr.write(f"DEBUG: sys.argv = {sys.argv}\n")
+    
     parser = argparse.ArgumentParser(
         description="Claude Code status line generator",
         formatter_class=argparse.RawDescriptionHelpFormatter
@@ -280,6 +284,13 @@ def parse_arguments():
         help="Disable emoji in output"
     )
     
+    # Debug option
+    parser.add_argument(
+        "--debug",
+        action="store_true",
+        help="Output debug information to stderr"
+    )
+    
     # Performance thresholds - cache
     parser.add_argument(
         "--perf-cache",
@@ -310,8 +321,12 @@ def parse_arguments():
         fields = [f.strip() for f in args.fields.split(",") if f.strip()]
         # If all fields were empty/whitespace, use defaults
         if not fields:
+            if "--debug" in sys.argv:
+                sys.stderr.write(f"DEBUG: Empty fields specified, using defaults\n")
             fields = DEFAULT_FIELDS.copy()
     else:
+        if "--debug" in sys.argv:
+            sys.stderr.write(f"DEBUG: No fields specified, using defaults\n")
         fields = DEFAULT_FIELDS.copy()
     
     # Parse threshold values
@@ -336,6 +351,7 @@ def parse_arguments():
         "numbers": args.numbers,
         "style": args.style,
         "no_emoji": args.no_emoji,
+        "debug": args.debug,
         "cache_thresholds": cache_thresholds,
         "response_thresholds": response_thresholds,
         "fields": fields
@@ -441,16 +457,24 @@ def get_model_pricing(model_id):
         return PRICING_DATA[model_id]
     return None
 
-def load_transcript(transcript_path):
+def load_transcript(transcript_path, debug=False):
     """Load and parse a Claude Code transcript JSONL file.
     
     Args:
         transcript_path: Path to the transcript file
+        debug: Whether to output debug information
     
     Returns:
         List of parsed JSON entries, or empty list on error
     """
     if not transcript_path:
+        if debug:
+            sys.stderr.write(f"DEBUG: No transcript path provided\n")
+        return []
+    
+    if not os.path.exists(transcript_path):
+        if debug:
+            sys.stderr.write(f"DEBUG: Transcript file does not exist: {transcript_path}\n")
         return []
     
     try:
@@ -467,13 +491,18 @@ def load_transcript(transcript_path):
                     # Log error but continue processing other lines
                     print(f"Warning: Invalid JSON at line {line_num} in transcript: {e}", file=sys.stderr)
                     continue
+        if debug:
+            sys.stderr.write(f"DEBUG: Successfully loaded {len(entries)} transcript entries\n")
         return entries
     except FileNotFoundError:
         # Transcript file not found - this is expected sometimes
+        if debug:
+            sys.stderr.write(f"DEBUG: Transcript file not found: {transcript_path}\n")
         return []
     except Exception as e:
         # Other errors reading file
-        print(f"Warning: Error reading transcript file: {e}", file=sys.stderr)
+        if debug:
+            sys.stderr.write(f"DEBUG: Error reading transcript file: {e}\n")
         return []
 
 def calculate_token_usage(transcript_entries):
@@ -793,6 +822,16 @@ def format_output(config, model_info, input_data, metrics=None):
     if metrics is None:
         metrics = {}
     
+    debug = config.get("debug", False)
+    
+    if debug:
+        sys.stderr.write(f"DEBUG: === format_output ===\n")
+        sys.stderr.write(f"DEBUG: Requested fields: {config['fields']}\n")
+        sys.stderr.write(f"DEBUG: Available metrics: {list(metrics.keys())}\n")
+        if not metrics:
+            sys.stderr.write(f"DEBUG: WARNING: metrics dict is empty!\n")
+        sys.stderr.write(f"DEBUG: Model info: {model_info}\n")
+    
     # Get theme colors
     theme_colors = THEMES.get(config["theme"], {})
     is_powerline = config["style"] == "powerline"
@@ -816,14 +855,23 @@ def format_output(config, model_info, input_data, metrics=None):
         if field not in config["fields"]:
             continue
             
+        if debug:
+            sys.stderr.write(f"DEBUG: Processing field: {field}\n")
+            
         # Prepare field content
         field_content = None
         
         # Handle different fields
-        if field == "badge" and "badge" in metrics:
-            field_content = metrics["badge"]
+        if field == "badge":
+            if "badge" in metrics:
+                field_content = metrics["badge"]
+            elif debug:
+                sys.stderr.write(f"DEBUG: Badge not in metrics (need cache_hit_rate and avg_response_time)\n")
         elif field == "model":
-            field_content = model_info["display_name"]
+            if "display_name" in model_info:
+                field_content = model_info["display_name"]
+            elif debug:
+                sys.stderr.write(f"DEBUG: No display_name in model_info: {model_info}\n")
         elif field == "folder":
             # Extract folder name from cwd
             cwd = input_data.get("cwd", os.getcwd())
@@ -848,8 +896,11 @@ def format_output(config, model_info, input_data, metrics=None):
         elif field == "context" and "context_size" in metrics:
             prefix = "Ctx:" if config["no_emoji"] else "⧉"
             field_content = f"{prefix} {format_number(metrics['context_size'], config['numbers'])}"
-        elif field == "cost" and "cost_formatted" in metrics:
-            field_content = metrics["cost_formatted"]
+        elif field == "cost":
+            if "cost_formatted" in metrics:
+                field_content = metrics["cost_formatted"]
+            elif debug:
+                sys.stderr.write(f"DEBUG: Cost not available - need model_id and token data\n")
         elif field == "git" and "git_info" in metrics:
             # Format git status: "branch ●" if modified, "branch" if clean
             branch = metrics["git_info"]["branch"]
@@ -917,6 +968,9 @@ def format_output(config, model_info, input_data, metrics=None):
         
         # Add field to output
         if field_content:
+            if debug:
+                sys.stderr.write(f"DEBUG: Adding field '{field}' with content: '{field_content[:50]}...'\n")
+            
             if is_powerline and config["theme"] != "none":
                 # For powerline, store segment with its background color
                 bg_color = get_field_color(field, theme_colors)
@@ -931,6 +985,9 @@ def format_output(config, model_info, input_data, metrics=None):
                     if color is not None:
                         field_content = apply_color(field_content, fg_color=color)
                 output_parts.append(field_content)
+        else:
+            if debug:
+                sys.stderr.write(f"DEBUG: Field '{field}' has no content, skipping\n")
     
     # Build final output
     if is_powerline and config["theme"] != "none":
@@ -1009,38 +1066,70 @@ def format_output(config, model_info, input_data, metrics=None):
                 sep = apply_color(POWERLINE_RIGHT, fg_color=bg_color, bg_color=0)
                 result.append(sep)
         
-        return "".join(result)
+        result_str = "".join(result)
+        if debug:
+            sys.stderr.write(f"DEBUG: Returning powerline output with {len(segments)} segments\n")
+        return result_str
     elif is_powerline:
         # Powerline with no colors - use simple separator
-        return " > ".join(output_parts)
+        result_str = " > ".join(output_parts)
+        if debug:
+            sys.stderr.write(f"DEBUG: Returning powerline (no theme) output with {len(output_parts)} parts\n")
+        return result_str
     else:
         # Join parts with separator for non-powerline styles
-        return separator.join(output_parts)
+        result_str = separator.join(output_parts)
+        if debug:
+            sys.stderr.write(f"DEBUG: Returning regular output with {len(output_parts)} parts\n")
+        return result_str
 
 def main():
     """Main entry point."""
     # Parse arguments
     config = parse_arguments()
+    debug = config.get("debug", False)
+    
+    if debug:
+        sys.stderr.write(f"DEBUG: Config: {config}\n")
     
     # Read input
     input_data = read_input()
     
+    if debug:
+        sys.stderr.write(f"DEBUG: Input data keys: {list(input_data.keys())}\n")
+        sys.stderr.write(f"DEBUG: Model: {input_data.get('model', 'None')}\n")
+        sys.stderr.write(f"DEBUG: Transcript path: {input_data.get('transcript_path', 'None')}\n")
+        sys.stderr.write(f"DEBUG: CWD: {input_data.get('cwd', 'None')}\n")
+    
     # Extract model info
     model_info = extract_model_info(input_data)
+    
+    if debug:
+        sys.stderr.write(f"DEBUG: Model info: {model_info}\n")
     
     # Extract git status
     git_info = extract_git_status(input_data)
     
+    if debug:
+        sys.stderr.write(f"DEBUG: Git info: {git_info}\n")
+    
     # Load transcript if provided
     transcript_path = input_data.get("transcript_path", None)
-    transcript_entries = load_transcript(transcript_path)
+    transcript_entries = load_transcript(transcript_path, debug=debug)
     
     # Calculate metrics from transcript
     metrics = {}
+    
+    if debug:
+        sys.stderr.write(f"DEBUG: Transcript entries loaded: {len(transcript_entries)}\n")
+    
     if transcript_entries:
         # Calculate token usage
         token_totals = calculate_token_usage(transcript_entries)
         metrics.update(token_totals)
+        
+        if debug:
+            sys.stderr.write(f"DEBUG: Token totals: {token_totals}\n")
         
         # Calculate context size (everything except cache reads)
         context_size = (token_totals.get("input_tokens", 0) + 
@@ -1051,11 +1140,17 @@ def main():
         # Get model ID (from transcript or input)
         model_id = get_model_from_transcript(transcript_entries) or model_info.get("id")
         
+        if debug:
+            sys.stderr.write(f"DEBUG: Model ID for cost calculation: {model_id}\n")
+        
         # Calculate cost
         if model_id:
             cost = calculate_cost(token_totals, model_id)
             metrics["cost"] = cost
             metrics["cost_formatted"] = format_cost(cost)
+            
+            if debug:
+                sys.stderr.write(f"DEBUG: Calculated cost: ${cost:.2f}\n")
         
         # Calculate performance metrics
         perf_metrics = calculate_performance_metrics(transcript_entries, token_totals)
@@ -1076,6 +1171,12 @@ def main():
                 no_emoji=config["no_emoji"]
             )
             metrics["badge"] = badge
+            if debug:
+                sys.stderr.write(f"DEBUG: Badge created: {badge[:20]}...\n")
+        elif debug:
+            has_cache = "cache_hit_rate" in metrics
+            has_response = "avg_response_time" in metrics
+            sys.stderr.write(f"DEBUG: Badge not created - cache_hit_rate:{has_cache}, avg_response_time:{has_response}\n")
     
     # Add git info to metrics
     if git_info["branch"]:
