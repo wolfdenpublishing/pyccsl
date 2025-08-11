@@ -19,7 +19,7 @@ import subprocess
 from datetime import datetime, timedelta
 import argparse
 
-__version__ = "0.5.0"
+__version__ = "0.5.1"
 
 # Pricing data embedded from https://docs.anthropic.com/en/docs/about-claude/pricing
 # All prices in USD per million tokens
@@ -220,14 +220,14 @@ def get_field_color(field, theme_colors):
         return theme_colors.get("model")
     elif field in ["input"]:
         return theme_colors.get("input")
-    elif field in ["output", "context"]:
+    elif field in ["output", "tokens"]:
         return theme_colors.get("output")
     elif field in ["cost"]:
         return theme_colors.get("cost")
     return None
 
 # Default field list
-DEFAULT_FIELDS = ["badge", "folder", "git", "model", "context", "cost"]
+DEFAULT_FIELDS = ["badge", "folder", "git", "model", "tokens", "cost"]
 
 # All available fields in display order
 FIELD_ORDER = [
@@ -243,7 +243,7 @@ FIELD_ORDER = [
     "perf-all-metrics",
     "input",
     "output",
-    "context",
+    "tokens",
     "cost"
 ]
 
@@ -905,8 +905,8 @@ def format_output(config, model_info, input_data, metrics=None):
         elif field == "output" and "output_tokens" in metrics:
             prefix = "Out:" if config["no_emoji"] else "↓"
             field_content = f"{prefix} {format_number(metrics['output_tokens'], config['numbers'])}"
-        elif field == "context" and "context_size" in metrics:
-            prefix = "Ctx:" if config["no_emoji"] else "⧉"
+        elif field == "tokens" and "context_size" in metrics:
+            prefix = "Tok:" if config["no_emoji"] else "⧉"
             field_content = f"{prefix} {format_number(metrics['context_size'], config['numbers'])}"
         elif field == "cost":
             if "cost_formatted" in metrics:
@@ -1143,11 +1143,12 @@ def main():
         if debug:
             sys.stderr.write(f"DEBUG: Token totals: {token_totals}\n")
         
-        # Calculate context size (everything except cache reads)
+        # Calculate tokens (all non-cached tokens: input + cache_creation + output)
+        # This represents the actual token usage that counts toward context
         context_size = (token_totals.get("input_tokens", 0) + 
                        token_totals.get("cache_creation_tokens", 0) + 
                        token_totals.get("output_tokens", 0))
-        metrics["context_size"] = context_size
+        metrics["context_size"] = context_size  # Keep internal name for compatibility
         
         # Get model ID (from transcript or input)
         model_id = get_model_from_transcript(transcript_entries) or model_info.get("id")

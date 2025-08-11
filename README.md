@@ -187,7 +187,7 @@ python3 pyccsl.py model,cost
 python3 pyccsl.py badge,model,perf-all-metrics,cost
 
 # Token details
-python3 pyccsl.py model,input,output,context
+python3 pyccsl.py model,input,output,tokens
 ```
 
 ### Separator Styles
@@ -287,7 +287,7 @@ All fields display in canonical order regardless of specification:
 | `perf-all-metrics` | All above | Combined metrics display |
 | `input` | `↑ (53,54.8K,251K)` | Input tokens (base, cache_write, cache_read) |
 | `output` | `↓ 2.6K` | Output token count |
-| `context` | `⧉ 57.5K` | Total context size |
+| `tokens` | `⧉ 57.5K` | Non-cached tokens (actual usage) |
 | `cost` | `48¢` or `$1.25` | Session cost |
 
 ---
