@@ -67,6 +67,13 @@ Set separator style:
 ### `--no-emoji`
 Disable emoji in output (useful for terminals without emoji support).
 
+### `--env FILE`
+Load configuration from an environment file. This allows dynamic configuration changes without restarting Claude Code.
+- File format: `VARIABLE=value` (bash-compatible)
+- Example: `--env pyccsl.env`
+- Variables in the env file override command-line arguments
+- See `pyccsl.env.example` for a complete example
+
 ### `--perf-cache GREEN,YELLOW,ORANGE`
 Set cache hit rate thresholds (percentages).
 - Default: `95,90,75`
@@ -206,6 +213,17 @@ python3 ~/.claude/pyccsl.py --perf-cache 70,50,30 --perf-response 2,4,6
 }
 ```
 
+### Dynamic Configuration with Environment File
+```json
+{
+  "statusLine": {
+    "type": "command",
+    "command": "python3 ~/.claude/pyccsl.py --env ~/.pyccsl.env"
+  }
+}
+```
+Then modify `~/.pyccsl.env` anytime to change the status line without restarting Claude Code!
+
 ## Performance Badge Interpretation
 
 The performance badge (●○○○) provides a quick visual indicator of session performance:
@@ -267,6 +285,15 @@ Command line options override environment variables.
 - `2` - Invalid input JSON
 - `3` - Transcript file not found or unreadable
 - `4` - Calculation error
+
+## Known Issues
+
+### Terminal Color Bleed
+When Claude Code displays system messages (e.g., "Context left until auto-compact: 12%"), it may truncate the status line mid-sequence, leaving ANSI color codes unclosed. This causes the terminal color to "bleed" into subsequent output.
+
+**Workaround**: Use `--theme none` to disable colors entirely, or use `--theme minimal` for reduced color usage.
+
+**Note**: This is a Claude Code limitation where system messages take priority and truncate custom status lines without properly closing escape sequences.
 
 ## Notes
 

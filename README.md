@@ -267,6 +267,41 @@ Includes git branch and status with powerline separators.
 Shows only model and cost without colors or emoji.
 </details>
 
+<details>
+<summary><b>Dynamic Configuration (Live Updates)</b></summary>
+
+Want to change your status line without restarting Claude Code? Use an environment file!
+
+1. Create a configuration file `~/.pyccsl.env`:
+```bash
+# Copy the example file
+cp pyccsl.env.example ~/.pyccsl.env
+```
+
+2. Configure Claude Code:
+```json
+{
+  "statusLine": {
+    "type": "command",
+    "command": "python3 ~/.claude/pyccsl.py --env ~/.pyccsl.env"
+  }
+}
+```
+
+3. Edit `~/.pyccsl.env` anytime to change settings instantly:
+```bash
+# Example ~/.pyccsl.env
+PYCCSL_THEME="nord"
+PYCCSL_NUMBERS="full"
+PYCCSL_STYLE="powerline"
+PYCCSL_FIELDS="badge,model,perf-cache-rate,tokens,cost"
+```
+
+Changes take effect immediately on the next status line refresh - no restart required!
+
+The env file is bash-compatible, so you can also source it: `source ~/.pyccsl.env`
+</details>
+
 ---
 
 ## Field Reference
@@ -414,6 +449,24 @@ Guidelines for contributions:
 3. Follow existing code style
 4. Update relevant SBSI documents
 5. Test with various Claude Code transcripts
+
+---
+
+## Known Issues
+
+### Terminal Color Bleed
+When Claude Code displays system messages (e.g., "Context left until auto-compact: 12%"), it may truncate the status line mid-sequence, leaving ANSI color codes unclosed. This causes terminal colors to "bleed" into subsequent output, as shown here:
+
+<div align="center">
+<img src=".attic/screenshot05.jpg" width="600" alt="Terminal color bleed issue">
+</div>
+
+**Workaround Options:**
+- Use `--theme none` to disable colors entirely
+- Use `--theme minimal` for reduced color usage  
+- Clear the terminal with `clear` or `reset` when this occurs
+
+**Note**: This is a Claude Code limitation where system messages take priority and truncate custom status lines without properly closing escape sequences. There is no fix available from the pyccsl side.
 
 ---
 

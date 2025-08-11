@@ -19,7 +19,7 @@ import subprocess
 from datetime import datetime, timedelta
 import argparse
 
-__version__ = "0.5.24"
+__version__ = "0.5.25"
 
 # Pricing data embedded from https://docs.anthropic.com/en/docs/about-claude/pricing
 # All prices in USD per million tokens
@@ -247,6 +247,52 @@ FIELD_ORDER = [
     "cost"
 ]
 
+def parse_env_file(filepath):
+    """Parse environment file and return a dictionary of variables.
+    
+    File format:
+    - Lines can be: VAR=value, VAR="value", or VAR='value'
+    - Lines starting with # are comments
+    - Empty lines are ignored
+    - The file is also valid bash script syntax
+    
+    Returns dict of environment variable names to values.
+    """
+    env_vars = {}
+    
+    if not filepath or not os.path.exists(filepath):
+        return env_vars
+    
+    try:
+        with open(filepath, 'r') as f:
+            for line_num, line in enumerate(f, 1):
+                line = line.strip()
+                
+                # Skip empty lines and comments
+                if not line or line.startswith('#'):
+                    continue
+                
+                # Parse VAR=value format
+                if '=' in line:
+                    key, value = line.split('=', 1)
+                    key = key.strip()
+                    value = value.strip()
+                    
+                    # Remove surrounding quotes if present
+                    if (value.startswith('"') and value.endswith('"')) or \
+                       (value.startswith("'") and value.endswith("'")):
+                        value = value[1:-1]
+                    
+                    # Only process PYCCSL_ variables for security
+                    if key.startswith('PYCCSL_'):
+                        env_vars[key] = value
+                    
+    except Exception as e:
+        # If there's an error reading the file, just continue without it
+        sys.stderr.write(f"Warning: Could not read env file {filepath}: {e}\n")
+    
+    return env_vars
+
 def parse_arguments():
     """Parse command-line arguments."""
     # Debug: print raw sys.argv
@@ -298,6 +344,12 @@ def parse_arguments():
         help="Output debug information to stderr"
     )
     
+    # Environment file option
+    parser.add_argument(
+        "--env",
+        help="Path to environment file with PYCCSL_* variables"
+    )
+    
     # Performance thresholds - cache
     parser.add_argument(
         "--perf-cache",
@@ -321,6 +373,30 @@ def parse_arguments():
     )
     
     args = parser.parse_args()
+    
+    # Load environment file if specified
+    env_vars = {}
+    if args.env:
+        env_vars = parse_env_file(args.env)
+        if args.debug and env_vars:
+            sys.stderr.write(f"DEBUG: Loaded env vars from {args.env}: {list(env_vars.keys())}\n")
+    
+    # Apply env file overrides (higher priority than command line)
+    # This allows dynamic configuration changes by modifying the env file
+    if 'PYCCSL_THEME' in env_vars:
+        args.theme = env_vars['PYCCSL_THEME']
+    if 'PYCCSL_NUMBERS' in env_vars:
+        args.numbers = env_vars['PYCCSL_NUMBERS']
+    if 'PYCCSL_STYLE' in env_vars:
+        args.style = env_vars['PYCCSL_STYLE']
+    if 'PYCCSL_NO_EMOJI' in env_vars:
+        args.no_emoji = env_vars['PYCCSL_NO_EMOJI'].lower() == 'true'
+    if 'PYCCSL_PERF_CACHE' in env_vars:
+        args.perf_cache = env_vars['PYCCSL_PERF_CACHE']
+    if 'PYCCSL_PERF_RESPONSE' in env_vars:
+        args.perf_response = env_vars['PYCCSL_PERF_RESPONSE']
+    if 'PYCCSL_FIELDS' in env_vars:
+        args.fields = env_vars['PYCCSL_FIELDS']
     
     # Parse fields
     if args.fields:
