@@ -12,7 +12,76 @@ import subprocess
 from datetime import datetime, timedelta
 import argparse
 
-__version__ = "0.1.2"
+__version__ = "0.1.3"
+
+# Pricing data embedded from https://docs.anthropic.com/en/docs/about-claude/pricing
+# All prices in USD per million tokens
+PRICING_DATA = {
+    "claude-opus-4-1-20250805": {
+        "name": "Claude Opus 4.1",
+        "input": 15.00,
+        "cache_write_5m": 18.75,
+        "cache_write_1h": 30.00,
+        "cache_read": 1.50,
+        "output": 75.00
+    },
+    "claude-opus-4-20250514": {
+        "name": "Claude Opus 4",
+        "input": 15.00,
+        "cache_write_5m": 18.75,
+        "cache_write_1h": 30.00,
+        "cache_read": 1.50,
+        "output": 75.00
+    },
+    "claude-sonnet-4-20250514": {
+        "name": "Claude Sonnet 4",
+        "input": 3.00,
+        "cache_write_5m": 3.75,
+        "cache_write_1h": 6.00,
+        "cache_read": 0.30,
+        "output": 15.00
+    },
+    "claude-3-7-sonnet-20250219": {
+        "name": "Claude Sonnet 3.7",
+        "input": 3.00,
+        "cache_write_5m": 3.75,
+        "cache_write_1h": 6.00,
+        "cache_read": 0.30,
+        "output": 15.00
+    },
+    "claude-3-5-sonnet-20241022": {
+        "name": "Claude Sonnet 3.5",
+        "input": 3.00,
+        "cache_write_5m": 3.75,
+        "cache_write_1h": 6.00,
+        "cache_read": 0.30,
+        "output": 15.00
+    },
+    "claude-3-5-sonnet-20240620": {
+        "name": "Claude Sonnet 3.5",
+        "input": 3.00,
+        "cache_write_5m": 3.75,
+        "cache_write_1h": 6.00,
+        "cache_read": 0.30,
+        "output": 15.00
+    },
+    "claude-3-5-haiku-20241022": {
+        "name": "Claude Haiku 3.5",
+        "input": 0.80,
+        "cache_write_5m": 1.00,
+        "cache_write_1h": 1.60,
+        "cache_read": 0.08,
+        "output": 4.00
+    },
+    "claude-3-haiku-20240307": {
+        "name": "Claude Haiku 3",
+        "input": 0.25,
+        "cache_write_5m": 0.30,
+        "cache_write_1h": 0.50,
+        "cache_read": 0.03,
+        "output": 1.25
+    }
+}
 
 # Default field list
 DEFAULT_FIELDS = ["badge", "folder", "git", "model", "input", "output", "cost"]
@@ -173,6 +242,15 @@ def extract_model_info(data):
             return {"display_name": "Unknown", "id": None}
     except Exception:
         return {"display_name": "Unknown", "id": None}
+
+def get_model_pricing(model_id):
+    """Get pricing information for a model ID.
+    
+    Returns a dict with pricing info or None if model not found.
+    """
+    if model_id and model_id in PRICING_DATA:
+        return PRICING_DATA[model_id]
+    return None
 
 def main():
     """Main entry point."""

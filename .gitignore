@@ -4,5 +4,6 @@
 .claude/
 .context/
 .sbsi/
+__pycache__/
 CLAUDE.md
 pricing.json
