@@ -12,7 +12,7 @@ import subprocess
 from datetime import datetime, timedelta
 import argparse
 
-__version__ = "0.2.7"
+__version__ = "0.2.8"
 
 # Pricing data embedded from https://docs.anthropic.com/en/docs/about-claude/pricing
 # All prices in USD per million tokens
@@ -383,6 +383,46 @@ def format_cost(cost):
         cents = int(round(cost * 100))
         return f"{cents}¢"
 
+def calculate_performance_badge(cache_hit_rate, avg_response_time, cache_thresholds, response_thresholds):
+    """Calculate performance badge based on metrics and thresholds.
+    
+    Args:
+        cache_hit_rate: Cache hit rate (0.0 to 1.0)
+        avg_response_time: Average response time in seconds
+        cache_thresholds: List of [green, yellow, orange] thresholds for cache hit rate
+        response_thresholds: List of [green, yellow, orange] thresholds for response time
+    
+    Returns:
+        Badge string (e.g., "●○○○", "○●○○", "○○●○", "○○○●")
+    """
+    # Calculate performance level for cache hit rate (higher is better)
+    cache_percent = cache_hit_rate * 100
+    if cache_percent >= cache_thresholds[0]:
+        cache_level = 0  # Green
+    elif cache_percent >= cache_thresholds[1]:
+        cache_level = 1  # Yellow
+    elif cache_percent >= cache_thresholds[2]:
+        cache_level = 2  # Orange
+    else:
+        cache_level = 3  # Red
+    
+    # Calculate performance level for response time (lower is better)
+    if avg_response_time <= response_thresholds[0]:
+        response_level = 0  # Green
+    elif avg_response_time <= response_thresholds[1]:
+        response_level = 1  # Yellow
+    elif avg_response_time <= response_thresholds[2]:
+        response_level = 2  # Orange
+    else:
+        response_level = 3  # Red
+    
+    # Combine metrics (take the worse of the two)
+    overall_level = max(cache_level, response_level)
+    
+    # Generate badge string
+    badges = ["●○○○", "○●○○", "○○●○", "○○○●"]
+    return badges[overall_level]
+
 def calculate_performance_metrics(transcript_entries, token_totals):
     """Calculate performance metrics from transcript.
     
@@ -507,7 +547,9 @@ def format_output(config, model_info, input_data, metrics=None):
             continue
             
         # Handle different fields
-        if field == "model":
+        if field == "badge" and "badge" in metrics:
+            output_parts.append(metrics["badge"])
+        elif field == "model":
             output_parts.append(model_info["display_name"])
         elif field == "cost" and "cost_formatted" in metrics:
             output_parts.append(metrics["cost_formatted"])
@@ -551,6 +593,16 @@ def main():
         # Calculate performance metrics
         perf_metrics = calculate_performance_metrics(transcript_entries, token_totals)
         metrics.update(perf_metrics)
+        
+        # Calculate performance badge
+        if "cache_hit_rate" in metrics and "avg_response_time" in metrics:
+            badge = calculate_performance_badge(
+                metrics["cache_hit_rate"],
+                metrics["avg_response_time"],
+                config["cache_thresholds"],
+                config["response_thresholds"]
+            )
+            metrics["badge"] = badge
     
     # Format and output (pass metrics for field display)
     output = format_output(config, model_info, input_data, metrics)
