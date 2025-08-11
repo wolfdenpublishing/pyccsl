@@ -12,7 +12,7 @@ import subprocess
 from datetime import datetime, timedelta
 import argparse
 
-__version__ = "0.2.6"
+__version__ = "0.2.7"
 
 # Pricing data embedded from https://docs.anthropic.com/en/docs/about-claude/pricing
 # All prices in USD per million tokens
@@ -383,6 +383,95 @@ def format_cost(cost):
         cents = int(round(cost * 100))
         return f"{cents}¢"
 
+def calculate_performance_metrics(transcript_entries, token_totals):
+    """Calculate performance metrics from transcript.
+    
+    Args:
+        transcript_entries: List of parsed transcript entries
+        token_totals: Dict with token usage totals
+    
+    Returns:
+        Dict with performance metrics
+    """
+    metrics = {}
+    
+    # Calculate cache hit rate
+    total_input = (token_totals.get("input_tokens", 0) + 
+                   token_totals.get("cache_creation_tokens", 0) + 
+                   token_totals.get("cache_read_tokens", 0))
+    if total_input > 0:
+        cache_hit_rate = token_totals.get("cache_read_tokens", 0) / total_input
+        metrics["cache_hit_rate"] = cache_hit_rate
+    else:
+        metrics["cache_hit_rate"] = 0.0
+    
+    # Calculate response times, token rates, and count messages
+    user_timestamps = []
+    assistant_timestamps = []
+    response_times = []
+    token_rates = []  # Token generation rates per response
+    
+    for entry in transcript_entries:
+        timestamp_str = entry.get("timestamp")
+        if not timestamp_str:
+            continue
+            
+        entry_type = entry.get("type")
+        if entry_type == "user":
+            try:
+                # Parse ISO format timestamp
+                timestamp = datetime.fromisoformat(timestamp_str.replace('Z', '+00:00'))
+                user_timestamps.append(timestamp)
+            except:
+                pass
+        elif entry_type == "assistant":
+            try:
+                timestamp = datetime.fromisoformat(timestamp_str.replace('Z', '+00:00'))
+                assistant_timestamps.append(timestamp)
+                
+                # Calculate response time if we have a preceding user message
+                if user_timestamps and len(assistant_timestamps) <= len(user_timestamps):
+                    # Match with the most recent user message
+                    user_time = user_timestamps[len(assistant_timestamps) - 1]
+                    response_time = (timestamp - user_time).total_seconds()
+                    if response_time >= 0:  # Sanity check
+                        response_times.append(response_time)
+                        
+                        # Calculate token generation rate for this response
+                        if "message" in entry and "usage" in entry["message"]:
+                            output_tokens = entry["message"]["usage"].get("output_tokens", 0)
+                            if response_time > 0 and output_tokens > 0:
+                                token_rate = output_tokens / response_time
+                                token_rates.append(token_rate)
+            except:
+                pass
+    
+    # Average response time
+    if response_times:
+        metrics["avg_response_time"] = sum(response_times) / len(response_times)
+    else:
+        metrics["avg_response_time"] = 0.0
+    
+    # Average token generation rate (per response, not per session)
+    if token_rates:
+        metrics["token_rate"] = sum(token_rates) / len(token_rates)
+    else:
+        metrics["token_rate"] = 0.0
+    
+    # Message count
+    metrics["message_count"] = len(user_timestamps)
+    
+    # Session duration
+    all_timestamps = user_timestamps + assistant_timestamps
+    if len(all_timestamps) >= 2:
+        all_timestamps.sort()
+        session_duration = (all_timestamps[-1] - all_timestamps[0]).total_seconds()
+        metrics["session_duration"] = session_duration
+    else:
+        metrics["session_duration"] = 0.0
+    
+    return metrics
+
 def format_output(config, model_info, input_data, metrics=None):
     """Format the output based on selected fields and configuration.
     
@@ -458,6 +547,10 @@ def main():
             cost = calculate_cost(token_totals, model_id)
             metrics["cost"] = cost
             metrics["cost_formatted"] = format_cost(cost)
+        
+        # Calculate performance metrics
+        perf_metrics = calculate_performance_metrics(transcript_entries, token_totals)
+        metrics.update(perf_metrics)
     
     # Format and output (pass metrics for field display)
     output = format_output(config, model_info, input_data, metrics)
