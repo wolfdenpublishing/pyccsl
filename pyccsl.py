@@ -12,7 +12,7 @@ import subprocess
 from datetime import datetime, timedelta
 import argparse
 
-__version__ = "0.2.4"
+__version__ = "0.2.5"
 
 # Pricing data embedded from https://docs.anthropic.com/en/docs/about-claude/pricing
 # All prices in USD per million tokens
@@ -287,6 +287,43 @@ def load_transcript(transcript_path):
         print(f"Warning: Error reading transcript file: {e}", file=sys.stderr)
         return []
 
+def calculate_token_usage(transcript_entries):
+    """Calculate total token usage from transcript entries.
+    
+    Args:
+        transcript_entries: List of parsed transcript entries
+    
+    Returns:
+        Dict with token totals: input_tokens, output_tokens, 
+        cache_creation_tokens, cache_read_tokens
+    """
+    totals = {
+        "input_tokens": 0,
+        "output_tokens": 0,
+        "cache_creation_tokens": 0,
+        "cache_read_tokens": 0
+    }
+    
+    for entry in transcript_entries:
+        usage = None
+        
+        # Check for usage in assistant messages
+        if entry.get("type") == "assistant" and "message" in entry:
+            usage = entry["message"].get("usage", {})
+        
+        # Check for usage in tool use results (only if it's a dict)
+        elif "toolUseResult" in entry and isinstance(entry["toolUseResult"], dict):
+            usage = entry["toolUseResult"].get("usage", {})
+        
+        if usage:
+            # Add tokens to totals
+            totals["input_tokens"] += usage.get("input_tokens", 0)
+            totals["output_tokens"] += usage.get("output_tokens", 0)
+            totals["cache_creation_tokens"] += usage.get("cache_creation_input_tokens", 0)
+            totals["cache_read_tokens"] += usage.get("cache_read_input_tokens", 0)
+    
+    return totals
+
 def format_output(config, model_info, input_data):
     """Format the output based on selected fields and configuration.
     
@@ -340,6 +377,12 @@ def main():
     # Load transcript if provided
     transcript_path = input_data.get("transcript_path", None)
     transcript_entries = load_transcript(transcript_path)
+    
+    # Calculate metrics from transcript
+    metrics = {}
+    if transcript_entries:
+        token_totals = calculate_token_usage(transcript_entries)
+        metrics.update(token_totals)
     
     # Format and output
     output = format_output(config, model_info, input_data)
