@@ -493,6 +493,21 @@ When Claude Code displays system messages (e.g., "Context left until auto-compac
 
 **Note**: This is a Claude Code limitation where system messages take priority and truncate custom status lines without properly closing escape sequences. There is no fix available from the pyCCsl side.
 
+### Token Rate Calculation Limitations
+The token generation rate (`perf-token-rate`) metric is an estimate based on available timing data in Claude Code transcripts.
+
+**Technical Details:**
+- Many transcript entries share identical timestamps due to parallel tool/subagent execution
+- User messages typed while Claude is processing may record incorrect time deltas (appearing hours apart from their responses)
+- Most tool operations don't report execution duration, only content-generating subagents include `totalDurationMs`
+
+**How It's Calculated:**
+1. Subagent results with `totalDurationMs` field provide accurate token/time measurements
+2. Direct assistant responses use parent-child timestamp deltas when reliable
+3. Unrealistic values (>500 t/s or gaps >5 minutes) are filtered as data anomalies
+
+The displayed rate averages all valid measurements, typically showing 15-50 tokens/second for actual content generation. This provides a reasonable estimate despite transcript timing limitations.
+
 ---
 
 ## License

@@ -19,7 +19,7 @@ import subprocess
 from datetime import datetime, timedelta
 import argparse
 
-__version__ = "0.5.27"
+__version__ = "0.5.32"
 
 # Pricing data embedded from https://docs.anthropic.com/en/docs/about-claude/pricing
 # All prices in USD per million tokens
@@ -795,12 +795,13 @@ def calculate_performance_badge(cache_hit_rate, avg_response_time, cache_thresho
         ]
         return badges[overall_level]
 
-def calculate_performance_metrics(transcript_entries, token_totals):
+def calculate_performance_metrics(transcript_entries, token_totals, debug=False):
     """Calculate performance metrics from transcript.
     
     Args:
         transcript_entries: List of parsed transcript entries
         token_totals: Dict with token usage totals
+        debug: Whether to output debug information
     
     Returns:
         Dict with performance metrics
@@ -817,13 +818,22 @@ def calculate_performance_metrics(transcript_entries, token_totals):
     else:
         metrics["cache_hit_rate"] = 0.0
     
-    # Calculate response times, token rates, and count messages
+    # Build UUID lookup map for parent-child relationships
+    uuid_lookup = {}
+    for entry in transcript_entries:
+        uuid = entry.get("uuid")
+        if uuid:
+            uuid_lookup[uuid] = entry
+    
+    if debug:
+        sys.stderr.write(f"DEBUG: Built UUID lookup with {len(uuid_lookup)} entries\n")
+    
+    # Calculate response times and count messages
     user_timestamps = []
     assistant_timestamps = []
     response_times = []
-    token_rates = []  # Token generation rates per response
-    last_user_timestamp = None  # Track the most recent user message timestamp
     
+    # Process entries to collect basic metrics
     for entry in transcript_entries:
         timestamp_str = entry.get("timestamp")
         if not timestamp_str:
@@ -837,53 +847,133 @@ def calculate_performance_metrics(transcript_entries, token_totals):
             
         entry_type = entry.get("type")
         
-        # Update last user timestamp when we see a user message
+        # Track user timestamps
         if entry_type == "user":
-            last_user_timestamp = timestamp
             user_timestamps.append(timestamp)
         
-        # Track assistant timestamps for response time calculation
+        # Track assistant timestamps
         elif entry_type == "assistant":
             assistant_timestamps.append(timestamp)
-            
-            # Calculate response time if we have a preceding user message
-            if last_user_timestamp:
-                response_time = (timestamp - last_user_timestamp).total_seconds()
-                if response_time >= 0:  # Sanity check
-                    response_times.append(response_time)
-        
-        # Check for output tokens in ANY entry (assistant messages or tool results)
-        # This is the key change - we look for output tokens wherever they appear
-        output_tokens = 0
-        
-        # Check assistant messages for output tokens
-        if entry_type == "assistant" and "message" in entry:
-            usage = entry["message"].get("usage", {})
-            output_tokens = usage.get("output_tokens", 0)
-        
-        # Check tool use results for output tokens
-        elif "toolUseResult" in entry and isinstance(entry["toolUseResult"], dict):
-            usage = entry["toolUseResult"].get("usage", {})
-            output_tokens = usage.get("output_tokens", 0)
-        
-        # If we found output tokens and have a prior user message, calculate rate
-        if output_tokens > 0 and last_user_timestamp:
-            time_since_user = (timestamp - last_user_timestamp).total_seconds()
-            if time_since_user > 0:  # Avoid division by zero
-                token_rate = output_tokens / time_since_user
-                token_rates.append(token_rate)
     
-    # Average response time
-    if response_times:
-        metrics["avg_response_time"] = sum(response_times) / len(response_times)
+    # Calculate token rate using two methods:
+    # 1. Entries with totalDurationMs (subagent results with accurate timing)
+    # 2. Direct responses (output_tokens without tool_use_id)
+    token_rates = []
+    
+    if transcript_entries:
+        # Method 1: Entries with totalDurationMs
+        for entry in transcript_entries:
+            tool_result = entry.get("toolUseResult")
+            if isinstance(tool_result, dict) and "totalDurationMs" in tool_result:
+                duration_ms = tool_result.get("totalDurationMs", 0)
+                usage = tool_result.get("usage", {})
+                output_tokens = usage.get("output_tokens", 0)
+                
+                if duration_ms > 0 and output_tokens > 0:
+                    duration_s = duration_ms / 1000.0
+                    rate = output_tokens / duration_s
+                    token_rates.append(rate)
+                    if debug:
+                        sys.stderr.write(f"DEBUG: Method 1 - {output_tokens} tokens in {duration_ms}ms = {rate:.1f} t/s\n")
+        
+        # Method 2: Direct responses without tool_use_id
+        for entry in transcript_entries:
+            output_tokens = 0
+            
+            # Check for output tokens in message
+            if "message" in entry and isinstance(entry["message"], dict):
+                usage = entry["message"].get("usage", {})
+                output_tokens = usage.get("output_tokens", 0)
+            
+            # Check in toolUseResult (but skip if has totalDurationMs - already counted)
+            elif "toolUseResult" in entry and isinstance(entry["toolUseResult"], dict):
+                if "totalDurationMs" not in entry["toolUseResult"]:
+                    usage = entry["toolUseResult"].get("usage", {})
+                    output_tokens = usage.get("output_tokens", 0)
+            
+            if output_tokens > 0:
+                # Check if entry has tool_use content (indicates it's initiating tools, not a direct response)
+                has_tool_use = False
+                if "message" in entry and isinstance(entry["message"], dict):
+                    content = entry["message"].get("content", [])
+                    if isinstance(content, list):
+                        for item in content:
+                            if isinstance(item, dict) and item.get("type") == "tool_use":
+                                has_tool_use = True
+                                break
+                
+                if not has_tool_use:
+                    # Find parent
+                    parent_uuid = entry.get("parentUuid")
+                    if parent_uuid and parent_uuid in uuid_lookup:
+                        parent = uuid_lookup[parent_uuid]
+                        
+                        # Check parent criteria
+                        parent_type = parent.get("type")
+                        parent_message = parent.get("message", {})
+                        parent_role = parent_message.get("role") if isinstance(parent_message, dict) else None
+                        
+                        # Check flags
+                        is_compact = parent.get("isCompactSummary", False)
+                        is_meta = parent.get("isMeta", False)
+                        
+                        if (parent_type == "user" and 
+                            parent_role == "user" and 
+                            not is_compact and 
+                            not is_meta):
+                            
+                            # Calculate time delta
+                            entry_ts_str = entry.get("timestamp")
+                            parent_ts_str = parent.get("timestamp")
+                            
+                            if entry_ts_str and parent_ts_str:
+                                try:
+                                    entry_ts = datetime.fromisoformat(entry_ts_str.replace('Z', '+00:00'))
+                                    parent_ts = datetime.fromisoformat(parent_ts_str.replace('Z', '+00:00'))
+                                    delta = (entry_ts - parent_ts).total_seconds()
+                                    
+                                    # Sanity checks
+                                    if delta > 0 and delta < 300:  # Between 0 and 5 minutes
+                                        rate = output_tokens / delta
+                                        if rate <= 500:  # Max 500 t/s
+                                            token_rates.append(rate)
+                                            if debug:
+                                                sys.stderr.write(f"DEBUG: Method 2 - {output_tokens} tokens in {delta:.2f}s = {rate:.1f} t/s\n")
+                                except:
+                                    pass
+        
+        # Calculate average token rate
+        if token_rates:
+            metrics["token_rate"] = sum(token_rates) / len(token_rates)
+            if debug:
+                sys.stderr.write(f"DEBUG: Token rate calculation summary:\n")
+                sys.stderr.write(f"DEBUG:   {len(token_rates)} rate calculations\n")
+                sys.stderr.write(f"DEBUG:   Average rate: {metrics['token_rate']:.1f} t/s\n")
+                sys.stderr.write(f"DEBUG:   Min: {min(token_rates):.1f} t/s, Max: {max(token_rates):.1f} t/s\n")
+        else:
+            metrics["token_rate"] = 0.0
+            if debug:
+                sys.stderr.write(f"DEBUG: No token rates calculated\n")
+    
+    # Average response time (simplified - just based on consecutive user/assistant pairs)
+    if user_timestamps and assistant_timestamps:
+        # Match user and assistant messages in order
+        paired_responses = []
+        for i, assistant_ts in enumerate(assistant_timestamps):
+            # Find the most recent user timestamp before this assistant
+            prior_users = [u for u in user_timestamps if u < assistant_ts]
+            if prior_users:
+                user_ts = max(prior_users)
+                response_time = (assistant_ts - user_ts).total_seconds()
+                if 0 < response_time < 300:  # Sanity check: between 0 and 5 minutes
+                    paired_responses.append(response_time)
+        
+        if paired_responses:
+            metrics["avg_response_time"] = sum(paired_responses) / len(paired_responses)
+        else:
+            metrics["avg_response_time"] = 0.0
     else:
         metrics["avg_response_time"] = 0.0
-    
-    # Average token generation rate (per response, not per session)
-    if token_rates:
-        metrics["token_rate"] = sum(token_rates) / len(token_rates)
-    else:
-        metrics["token_rate"] = 0.0
     
     # Message count
     metrics["message_count"] = len(user_timestamps)
@@ -1233,7 +1323,7 @@ def main():
                 sys.stderr.write(f"DEBUG: Calculated cost: ${cost:.2f}\n")
         
         # Calculate performance metrics
-        perf_metrics = calculate_performance_metrics(transcript_entries, token_totals)
+        perf_metrics = calculate_performance_metrics(transcript_entries, token_totals, debug=debug)
         metrics.update(perf_metrics)
         
         # Calculate performance badge

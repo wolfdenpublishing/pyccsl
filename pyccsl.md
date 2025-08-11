@@ -295,6 +295,20 @@ When Claude Code displays system messages (e.g., "Context left until auto-compac
 
 **Note**: This is a Claude Code limitation where system messages take priority and truncate custom status lines without properly closing escape sequences.
 
+### Token Rate Calculation Limitations
+The token generation rate (`perf-token-rate`) is an estimate based on limited timing data in the transcript format:
+
+**Issue**: Claude Code transcripts have several timing limitations:
+- Many entries share identical timestamps (parallel tool/subagent executions)
+- User messages typed during tool execution may show incorrect time deltas
+- Most tool uses don't report duration, only content-generating operations do
+
+**Current Approach**: The calculation uses two methods:
+1. Entries with `totalDurationMs` field (subagent results with accurate timing)
+2. Direct responses where parent-child timestamp deltas are reliable
+
+Unrealistic rates (>500 t/s) and large time gaps (>5 minutes) are filtered out as likely data anomalies. The displayed rate is an average of valid measurements, typically showing 15-50 t/s for actual generation.
+
 ## Notes
 
 - The script embeds pricing data from https://docs.anthropic.com/en/docs/about-claude/pricing
