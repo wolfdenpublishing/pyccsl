@@ -19,7 +19,7 @@ import subprocess
 from datetime import datetime, timedelta
 import argparse
 
-__version__ = "0.5.32"
+__version__ = "0.5.35"
 
 # Pricing data embedded from https://docs.anthropic.com/en/docs/about-claude/pricing
 # All prices in USD per million tokens
@@ -648,12 +648,11 @@ def get_model_from_transcript(transcript_entries):
                 return model_id
     return None
 
-def calculate_cost(token_totals, model_id):
-    """Calculate session cost from token totals and model pricing.
+def calculate_cost_per_entry(usage, model_id):
+    """Calculate cost for a single entry based on its token usage and model.
     
     Args:
-        token_totals: Dict with input_tokens, output_tokens, 
-                      cache_creation_tokens, cache_read_tokens
+        usage: Dict with token usage for this entry
         model_id: Model ID string for pricing lookup
     
     Returns:
@@ -666,13 +665,95 @@ def calculate_cost(token_totals, model_id):
     # Calculate cost using the formula (all rates are per million tokens)
     # Using 5-minute cache write rate (Claude Code default)
     cost = (
-        token_totals.get("input_tokens", 0) * pricing.get("input", 0) +
-        token_totals.get("cache_creation_tokens", 0) * pricing.get("cache_write_5m", 0) +
-        token_totals.get("cache_read_tokens", 0) * pricing.get("cache_read", 0) +
-        token_totals.get("output_tokens", 0) * pricing.get("output", 0)
+        usage.get("input_tokens", 0) * pricing.get("input", 0) +
+        usage.get("cache_creation_input_tokens", 0) * pricing.get("cache_write_5m", 0) +
+        usage.get("cache_read_input_tokens", 0) * pricing.get("cache_read", 0) +
+        usage.get("output_tokens", 0) * pricing.get("output", 0)
     ) / 1_000_000
     
     return cost
+
+def calculate_total_cost(transcript_entries, debug=False):
+    """Calculate total session cost by summing per-entry costs using each entry's model.
+    
+    Args:
+        transcript_entries: List of parsed transcript entries
+        debug: Whether to output debug information
+    
+    Returns:
+        Total cost in dollars (float)
+    """
+    total_cost = 0.0
+    model_costs = {}  # Track costs per model for debugging
+    
+    # Build UUID lookup for finding parent models
+    uuid_lookup = {}
+    for entry in transcript_entries:
+        uuid = entry.get("uuid")
+        if uuid:
+            uuid_lookup[uuid] = entry
+    
+    # Track the last seen model for tool results that don't specify one
+    last_model_id = None
+    
+    for entry in transcript_entries:
+        usage = None
+        model_id = None
+        
+        # Check for usage and model in assistant messages
+        if entry.get("type") == "assistant" and "message" in entry:
+            message = entry["message"]
+            usage = message.get("usage", {})
+            model_info = message.get("model")
+            
+            # Handle both string and dict formats for model
+            if isinstance(model_info, dict):
+                model_id = model_info.get("id")
+            else:
+                model_id = model_info
+                
+            if model_id:
+                last_model_id = model_id  # Remember this model
+        
+        # Check for usage in tool use results
+        elif "toolUseResult" in entry and isinstance(entry["toolUseResult"], dict):
+            usage = entry["toolUseResult"].get("usage", {})
+            
+            # Try to find model from parent assistant message
+            parent_uuid = entry.get("parentUuid")
+            if parent_uuid and parent_uuid in uuid_lookup:
+                parent = uuid_lookup[parent_uuid]
+                if parent.get("type") == "assistant" and "message" in parent:
+                    parent_model = parent["message"].get("model")
+                    # Extract model ID from dict if needed
+                    if isinstance(parent_model, dict):
+                        model_id = parent_model.get("id")
+                    else:
+                        model_id = parent_model
+            
+            # Fallback to last seen model if parent lookup fails
+            if not model_id:
+                model_id = last_model_id
+        
+        if usage and model_id:
+            entry_cost = calculate_cost_per_entry(usage, model_id)
+            total_cost += entry_cost
+            
+            # Track per-model costs for debugging
+            if model_id not in model_costs:
+                model_costs[model_id] = 0.0
+            model_costs[model_id] += entry_cost
+        elif usage and not model_id and debug:
+            # Log entries with usage but no model
+            sys.stderr.write(f"DEBUG: Entry with usage but no model: {entry.get('uuid', 'unknown')[:8]}\n")
+    
+    if debug and model_costs:
+        sys.stderr.write(f"DEBUG: Cost breakdown by model:\n")
+        for model_id, cost in model_costs.items():
+            sys.stderr.write(f"DEBUG:   {model_id}: ${cost:.4f}\n")
+        sys.stderr.write(f"DEBUG:   Total: ${total_cost:.4f}\n")
+    
+    return total_cost
 
 def format_cost(cost):
     """Format cost as dollars or cents.
@@ -1307,20 +1388,10 @@ def main():
                        token_totals.get("output_tokens", 0))
         metrics["context_size"] = context_size  # Keep internal name for compatibility
         
-        # Get model ID (from transcript or input)
-        model_id = get_model_from_transcript(transcript_entries) or model_info.get("id")
-        
-        if debug:
-            sys.stderr.write(f"DEBUG: Model ID for cost calculation: {model_id}\n")
-        
-        # Calculate cost
-        if model_id:
-            cost = calculate_cost(token_totals, model_id)
-            metrics["cost"] = cost
-            metrics["cost_formatted"] = format_cost(cost)
-            
-            if debug:
-                sys.stderr.write(f"DEBUG: Calculated cost: ${cost:.2f}\n")
+        # Calculate cost using per-entry models
+        cost = calculate_total_cost(transcript_entries, debug=debug)
+        metrics["cost"] = cost
+        metrics["cost_formatted"] = format_cost(cost)
         
         # Calculate performance metrics
         perf_metrics = calculate_performance_metrics(transcript_entries, token_totals, debug=debug)
