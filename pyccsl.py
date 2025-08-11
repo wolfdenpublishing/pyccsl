@@ -12,7 +12,7 @@ import subprocess
 from datetime import datetime, timedelta
 import argparse
 
-__version__ = "0.2.10"
+__version__ = "0.2.11"
 
 # Pricing data embedded from https://docs.anthropic.com/en/docs/about-claude/pricing
 # All prices in USD per million tokens
@@ -243,6 +243,55 @@ def extract_model_info(data):
             return {"display_name": "Unknown", "id": None}
     except Exception:
         return {"display_name": "Unknown", "id": None}
+
+def extract_git_status(input_data):
+    """Extract git status information from the current directory.
+    
+    Returns a dict with:
+    - branch: Current branch name or None
+    - modified_count: Number of modified/staged files or 0
+    """
+    try:
+        # Get working directory from input or use current
+        cwd = input_data.get("cwd", os.getcwd())
+        
+        # Get current branch name
+        branch_result = subprocess.run(
+            ["git", "rev-parse", "--abbrev-ref", "HEAD"],
+            cwd=cwd,
+            capture_output=True,
+            text=True,
+            timeout=2
+        )
+        
+        if branch_result.returncode != 0:
+            # Not a git repository
+            return {"branch": None, "modified_count": 0}
+        
+        branch = branch_result.stdout.strip()
+        
+        # Get modified file count using porcelain format
+        status_result = subprocess.run(
+            ["git", "status", "--porcelain"],
+            cwd=cwd,
+            capture_output=True,
+            text=True,
+            timeout=2
+        )
+        
+        # Count non-empty lines (each represents a modified file)
+        modified_count = 0
+        if status_result.returncode == 0:
+            modified_count = len([line for line in status_result.stdout.splitlines() if line.strip()])
+        
+        return {"branch": branch, "modified_count": modified_count}
+        
+    except (subprocess.TimeoutExpired, FileNotFoundError):
+        # Git not available or timeout
+        return {"branch": None, "modified_count": 0}
+    except Exception:
+        # Any other error - fail silently
+        return {"branch": None, "modified_count": 0}
 
 def get_model_pricing(model_id):
     """Get pricing information for a model ID.
@@ -586,6 +635,14 @@ def format_output(config, model_info, input_data, metrics=None):
             output_parts.append(f"⧉ {format_number(metrics['context_size'], config['numbers'])}")
         elif field == "cost" and "cost_formatted" in metrics:
             output_parts.append(metrics["cost_formatted"])
+        elif field == "git" and "git_info" in metrics:
+            # Format git status: "branch ●" if modified, "branch" if clean
+            branch = metrics["git_info"]["branch"]
+            modified = metrics["git_info"]["modified_count"]
+            if modified > 0:
+                output_parts.append(f"{branch} ●")
+            else:
+                output_parts.append(branch)
         # Other fields will be implemented in future phases
         # For now, skip them silently
     
@@ -602,6 +659,9 @@ def main():
     
     # Extract model info
     model_info = extract_model_info(input_data)
+    
+    # Extract git status
+    git_info = extract_git_status(input_data)
     
     # Load transcript if provided
     transcript_path = input_data.get("transcript_path", None)
@@ -642,6 +702,10 @@ def main():
                 config["response_thresholds"]
             )
             metrics["badge"] = badge
+    
+    # Add git info to metrics
+    if git_info["branch"]:
+        metrics["git_info"] = git_info
     
     # Format and output (pass metrics for field display)
     output = format_output(config, model_info, input_data, metrics)
