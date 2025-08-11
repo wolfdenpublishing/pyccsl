@@ -12,7 +12,7 @@ import subprocess
 from datetime import datetime, timedelta
 import argparse
 
-__version__ = "0.1.4"
+__version__ = "0.2.4"
 
 # Pricing data embedded from https://docs.anthropic.com/en/docs/about-claude/pricing
 # All prices in USD per million tokens
@@ -252,6 +252,41 @@ def get_model_pricing(model_id):
         return PRICING_DATA[model_id]
     return None
 
+def load_transcript(transcript_path):
+    """Load and parse a Claude Code transcript JSONL file.
+    
+    Args:
+        transcript_path: Path to the transcript file
+    
+    Returns:
+        List of parsed JSON entries, or empty list on error
+    """
+    if not transcript_path:
+        return []
+    
+    try:
+        entries = []
+        with open(transcript_path, 'r', encoding='utf-8') as f:
+            for line_num, line in enumerate(f, 1):
+                line = line.strip()
+                if not line:
+                    continue  # Skip empty lines
+                try:
+                    entry = json.loads(line)
+                    entries.append(entry)
+                except json.JSONDecodeError as e:
+                    # Log error but continue processing other lines
+                    print(f"Warning: Invalid JSON at line {line_num} in transcript: {e}", file=sys.stderr)
+                    continue
+        return entries
+    except FileNotFoundError:
+        # Transcript file not found - this is expected sometimes
+        return []
+    except Exception as e:
+        # Other errors reading file
+        print(f"Warning: Error reading transcript file: {e}", file=sys.stderr)
+        return []
+
 def format_output(config, model_info, input_data):
     """Format the output based on selected fields and configuration.
     
@@ -301,6 +336,10 @@ def main():
     
     # Extract model info
     model_info = extract_model_info(input_data)
+    
+    # Load transcript if provided
+    transcript_path = input_data.get("transcript_path", None)
+    transcript_entries = load_transcript(transcript_path)
     
     # Format and output
     output = format_output(config, model_info, input_data)
