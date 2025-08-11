@@ -12,7 +12,7 @@ import subprocess
 from datetime import datetime, timedelta
 import argparse
 
-__version__ = "0.2.11"
+__version__ = "0.2.12"
 
 # Pricing data embedded from https://docs.anthropic.com/en/docs/about-claude/pricing
 # All prices in USD per million tokens
@@ -623,6 +623,17 @@ def format_output(config, model_info, input_data, metrics=None):
             output_parts.append(metrics["badge"])
         elif field == "model":
             output_parts.append(model_info["display_name"])
+        elif field == "folder":
+            # Extract folder name from cwd
+            cwd = input_data.get("cwd", os.getcwd())
+            folder_name = os.path.basename(cwd)
+            # Handle root directory
+            if not folder_name:
+                folder_name = "/" if cwd == "/" else os.path.basename(os.path.dirname(cwd))
+            # Truncate if too long
+            if len(folder_name) > 20:
+                folder_name = folder_name[:17] + "..."
+            output_parts.append(folder_name)
         elif field == "input" and any(k in metrics for k in ["input_tokens", "cache_creation_tokens", "cache_read_tokens"]):
             # Display as tuple: (base, cache_write, cache_read)
             base = format_number(metrics.get("input_tokens", 0), config["numbers"])
