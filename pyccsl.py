@@ -19,7 +19,7 @@ import subprocess
 from datetime import datetime, timedelta
 import argparse
 
-__version__ = "0.5.26"
+__version__ = "0.5.27"
 
 # Pricing data embedded from https://docs.anthropic.com/en/docs/about-claude/pricing
 # All prices in USD per million tokens
@@ -822,41 +822,56 @@ def calculate_performance_metrics(transcript_entries, token_totals):
     assistant_timestamps = []
     response_times = []
     token_rates = []  # Token generation rates per response
+    last_user_timestamp = None  # Track the most recent user message timestamp
     
     for entry in transcript_entries:
         timestamp_str = entry.get("timestamp")
         if not timestamp_str:
             continue
             
+        try:
+            # Parse ISO format timestamp
+            timestamp = datetime.fromisoformat(timestamp_str.replace('Z', '+00:00'))
+        except:
+            continue
+            
         entry_type = entry.get("type")
+        
+        # Update last user timestamp when we see a user message
         if entry_type == "user":
-            try:
-                # Parse ISO format timestamp
-                timestamp = datetime.fromisoformat(timestamp_str.replace('Z', '+00:00'))
-                user_timestamps.append(timestamp)
-            except:
-                pass
+            last_user_timestamp = timestamp
+            user_timestamps.append(timestamp)
+        
+        # Track assistant timestamps for response time calculation
         elif entry_type == "assistant":
-            try:
-                timestamp = datetime.fromisoformat(timestamp_str.replace('Z', '+00:00'))
-                assistant_timestamps.append(timestamp)
-                
-                # Calculate response time if we have a preceding user message
-                if user_timestamps and len(assistant_timestamps) <= len(user_timestamps):
-                    # Match with the most recent user message
-                    user_time = user_timestamps[len(assistant_timestamps) - 1]
-                    response_time = (timestamp - user_time).total_seconds()
-                    if response_time >= 0:  # Sanity check
-                        response_times.append(response_time)
-                        
-                        # Calculate token generation rate for this response
-                        if "message" in entry and "usage" in entry["message"]:
-                            output_tokens = entry["message"]["usage"].get("output_tokens", 0)
-                            if response_time > 0 and output_tokens > 0:
-                                token_rate = output_tokens / response_time
-                                token_rates.append(token_rate)
-            except:
-                pass
+            assistant_timestamps.append(timestamp)
+            
+            # Calculate response time if we have a preceding user message
+            if last_user_timestamp:
+                response_time = (timestamp - last_user_timestamp).total_seconds()
+                if response_time >= 0:  # Sanity check
+                    response_times.append(response_time)
+        
+        # Check for output tokens in ANY entry (assistant messages or tool results)
+        # This is the key change - we look for output tokens wherever they appear
+        output_tokens = 0
+        
+        # Check assistant messages for output tokens
+        if entry_type == "assistant" and "message" in entry:
+            usage = entry["message"].get("usage", {})
+            output_tokens = usage.get("output_tokens", 0)
+        
+        # Check tool use results for output tokens
+        elif "toolUseResult" in entry and isinstance(entry["toolUseResult"], dict):
+            usage = entry["toolUseResult"].get("usage", {})
+            output_tokens = usage.get("output_tokens", 0)
+        
+        # If we found output tokens and have a prior user message, calculate rate
+        if output_tokens > 0 and last_user_timestamp:
+            time_since_user = (timestamp - last_user_timestamp).total_seconds()
+            if time_since_user > 0:  # Avoid division by zero
+                token_rate = output_tokens / time_since_user
+                token_rates.append(token_rate)
     
     # Average response time
     if response_times:

@@ -137,7 +137,7 @@ Four-level performance indicator:
 - Python 3.8 or higher
 - Claude Code
 
-### Setup
+### Quick Setup
 
 1. Download the script:
 ```bash
@@ -159,6 +159,34 @@ cp pyccsl.py ~/.claude/
   }
 }
 ```
+
+That's it! Restart Claude Code and you should have the default status line.
+
+### Recommended Setup
+
+Use the `--env` option and you can change your status line at any time *while Claude Code is running.* (These instructions assume you have completed the Quick Setup steps above.)
+
+1. Download the example .env file:
+```json
+curl -O https://raw.githubusercontent.com/wolfdenpublishing/pyccsl/main/pyccsl.env.example
+```
+
+2. Copy to Claude directory:
+```bash
+cp pyccsl.env.example ~/.claude/pyccls.env
+```
+
+3. Modify the hook command in `~/.claude/settings.json`:
+```json
+{
+  "statusLine": {
+    "type": "command",
+    "command": "python3 ~/.claude/pyccsl.py --env ~/.claude/pyccsl.env"
+  }
+}
+```
+
+Edit the `~/.claude/pyccsl.env` file at any time to dynamically modify the status line of your *active* Claude Code sessions!
 
 ---
 
@@ -455,13 +483,10 @@ Guidelines for contributions:
 ## Known Issues
 
 ### Terminal Color Bleed
-When Claude Code displays system messages (e.g., "Context left until auto-compact: 12%"), it may truncate the status line mid-sequence, leaving ANSI color codes unclosed. This causes terminal colors to "bleed" into subsequent output, as shown here:
-
-<div align="center">
-<img src=".attic/screenshot05.jpg" width="600" alt="Terminal color bleed issue">
-</div>
+When Claude Code displays system messages (e.g., "Context left until auto-compact: 12%"), it may truncate the status line mid-sequence, leaving ANSI color codes unclosed. This causes terminal colors to "bleed" into subsequent output.
 
 **Workaround Options:**
+
 - Use `--theme none` to disable colors entirely
 - Use `--theme minimal` for reduced color usage  
 - Clear the terminal with `clear` or `reset` when this occurs
