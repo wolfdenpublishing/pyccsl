@@ -101,7 +101,6 @@ Fields are always displayed in this order, regardless of how they're specified:
 | `perf-cache-rate` | Cache hit percentage (⚡85%) | |
 | `perf-response-time` | Average response time (⏱1.5s) | |
 | `perf-session-time` | Session duration (🕐45m) | |
-| `perf-token-rate` | Token generation rate (⚙94 t/s) | |
 | `perf-message-count` | Number of messages (💬12) | |
 | `perf-all-metrics` | All performance metrics | |
 | `input` | Input tokens as tuple: (base, cache_write, cache_read) | |
@@ -134,7 +133,7 @@ python3 ~/.claude/pyccsl.py model,input,output,tokens
 # Show all performance metrics
 python3 ~/.claude/pyccsl.py badge,model,perf_all_metrics,cost
 
-# Output: ○○●○ Sonnet 3.5 │ ⚡85% ⏱2.5s 🕐45m ⚙94t/s 💬12 > 48¢
+# Output: ○○●○ Sonnet 3.5 │ ⚡85% ⏱2.5s 🕐45m 💬12 > 48¢
 ```
 
 ### Custom Theme and Format
@@ -295,19 +294,6 @@ When Claude Code displays system messages (e.g., "Context left until auto-compac
 
 **Note**: This is a Claude Code limitation where system messages take priority and truncate custom status lines without properly closing escape sequences.
 
-### Token Rate Calculation Limitations
-The token generation rate (`perf-token-rate`) is an estimate based on limited timing data in the transcript format:
-
-**Issue**: Claude Code transcripts have several timing limitations:
-- Many entries share identical timestamps (parallel tool/subagent executions)
-- User messages typed during tool execution may show incorrect time deltas
-- Most tool uses don't report duration, only content-generating operations do
-
-**Current Approach**: The calculation uses two methods:
-1. Entries with `totalDurationMs` field (subagent results with accurate timing)
-2. Direct responses where parent-child timestamp deltas are reliable
-
-Unrealistic rates (>500 t/s) and large time gaps (>5 minutes) are filtered out as likely data anomalies. The displayed rate is an average of valid measurements, typically showing 15-50 t/s for actual generation.
 
 ## Notes
 

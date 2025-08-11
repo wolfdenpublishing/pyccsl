@@ -19,7 +19,7 @@ import subprocess
 from datetime import datetime, timedelta
 import argparse
 
-__version__ = "0.5.35"
+__version__ = "0.5.36"
 
 # Pricing data embedded from https://docs.anthropic.com/en/docs/about-claude/pricing
 # All prices in USD per million tokens
@@ -215,7 +215,7 @@ def get_field_color(field, theme_colors):
     elif field in ["git"]:
         return theme_colors.get("git")
     elif field in ["model", "perf-cache-rate", "perf-response-time", 
-                   "perf-session-time", "perf-token-rate", "perf-message-count",
+                   "perf-session-time", "perf-message-count",
                    "perf-all-metrics"]:
         return theme_colors.get("model")
     elif field in ["input"]:
@@ -238,7 +238,6 @@ FIELD_ORDER = [
     "perf-cache-rate",
     "perf-response-time",
     "perf-session-time",
-    "perf-token-rate",
     "perf-message-count",
     "perf-all-metrics",
     "input",
@@ -936,105 +935,6 @@ def calculate_performance_metrics(transcript_entries, token_totals, debug=False)
         elif entry_type == "assistant":
             assistant_timestamps.append(timestamp)
     
-    # Calculate token rate using two methods:
-    # 1. Entries with totalDurationMs (subagent results with accurate timing)
-    # 2. Direct responses (output_tokens without tool_use_id)
-    token_rates = []
-    
-    if transcript_entries:
-        # Method 1: Entries with totalDurationMs
-        for entry in transcript_entries:
-            tool_result = entry.get("toolUseResult")
-            if isinstance(tool_result, dict) and "totalDurationMs" in tool_result:
-                duration_ms = tool_result.get("totalDurationMs", 0)
-                usage = tool_result.get("usage", {})
-                output_tokens = usage.get("output_tokens", 0)
-                
-                if duration_ms > 0 and output_tokens > 0:
-                    duration_s = duration_ms / 1000.0
-                    rate = output_tokens / duration_s
-                    token_rates.append(rate)
-                    if debug:
-                        sys.stderr.write(f"DEBUG: Method 1 - {output_tokens} tokens in {duration_ms}ms = {rate:.1f} t/s\n")
-        
-        # Method 2: Direct responses without tool_use_id
-        for entry in transcript_entries:
-            output_tokens = 0
-            
-            # Check for output tokens in message
-            if "message" in entry and isinstance(entry["message"], dict):
-                usage = entry["message"].get("usage", {})
-                output_tokens = usage.get("output_tokens", 0)
-            
-            # Check in toolUseResult (but skip if has totalDurationMs - already counted)
-            elif "toolUseResult" in entry and isinstance(entry["toolUseResult"], dict):
-                if "totalDurationMs" not in entry["toolUseResult"]:
-                    usage = entry["toolUseResult"].get("usage", {})
-                    output_tokens = usage.get("output_tokens", 0)
-            
-            if output_tokens > 0:
-                # Check if entry has tool_use content (indicates it's initiating tools, not a direct response)
-                has_tool_use = False
-                if "message" in entry and isinstance(entry["message"], dict):
-                    content = entry["message"].get("content", [])
-                    if isinstance(content, list):
-                        for item in content:
-                            if isinstance(item, dict) and item.get("type") == "tool_use":
-                                has_tool_use = True
-                                break
-                
-                if not has_tool_use:
-                    # Find parent
-                    parent_uuid = entry.get("parentUuid")
-                    if parent_uuid and parent_uuid in uuid_lookup:
-                        parent = uuid_lookup[parent_uuid]
-                        
-                        # Check parent criteria
-                        parent_type = parent.get("type")
-                        parent_message = parent.get("message", {})
-                        parent_role = parent_message.get("role") if isinstance(parent_message, dict) else None
-                        
-                        # Check flags
-                        is_compact = parent.get("isCompactSummary", False)
-                        is_meta = parent.get("isMeta", False)
-                        
-                        if (parent_type == "user" and 
-                            parent_role == "user" and 
-                            not is_compact and 
-                            not is_meta):
-                            
-                            # Calculate time delta
-                            entry_ts_str = entry.get("timestamp")
-                            parent_ts_str = parent.get("timestamp")
-                            
-                            if entry_ts_str and parent_ts_str:
-                                try:
-                                    entry_ts = datetime.fromisoformat(entry_ts_str.replace('Z', '+00:00'))
-                                    parent_ts = datetime.fromisoformat(parent_ts_str.replace('Z', '+00:00'))
-                                    delta = (entry_ts - parent_ts).total_seconds()
-                                    
-                                    # Sanity checks
-                                    if delta > 0 and delta < 300:  # Between 0 and 5 minutes
-                                        rate = output_tokens / delta
-                                        if rate <= 500:  # Max 500 t/s
-                                            token_rates.append(rate)
-                                            if debug:
-                                                sys.stderr.write(f"DEBUG: Method 2 - {output_tokens} tokens in {delta:.2f}s = {rate:.1f} t/s\n")
-                                except:
-                                    pass
-        
-        # Calculate average token rate
-        if token_rates:
-            metrics["token_rate"] = sum(token_rates) / len(token_rates)
-            if debug:
-                sys.stderr.write(f"DEBUG: Token rate calculation summary:\n")
-                sys.stderr.write(f"DEBUG:   {len(token_rates)} rate calculations\n")
-                sys.stderr.write(f"DEBUG:   Average rate: {metrics['token_rate']:.1f} t/s\n")
-                sys.stderr.write(f"DEBUG:   Min: {min(token_rates):.1f} t/s, Max: {max(token_rates):.1f} t/s\n")
-        else:
-            metrics["token_rate"] = 0.0
-            if debug:
-                sys.stderr.write(f"DEBUG: No token rates calculated\n")
     
     # Average response time (simplified - just based on consecutive user/assistant pairs)
     if user_timestamps and assistant_timestamps:
@@ -1209,13 +1109,6 @@ def format_output(config, model_info, input_data, metrics=None):
                 field_content = f"Session: {time_str}"
             else:
                 field_content = f"🕐 {time_str}"
-        elif field == "perf-token-rate" and "token_rate" in metrics:
-            # Format token generation rate
-            rate = metrics["token_rate"]
-            if config["no_emoji"]:
-                field_content = f"Rate: {rate:.0f}t/s"
-            else:
-                field_content = f"⚙ {rate:.0f}t/s"
         elif field == "perf-message-count" and "message_count" in metrics:
             # Format message count
             count = metrics["message_count"]
@@ -1235,9 +1128,6 @@ def format_output(config, model_info, input_data, metrics=None):
             if "session_duration" in metrics:
                 time_str = format_duration(metrics["session_duration"])
                 perf_parts.append(f"🕐 {time_str}" if not config["no_emoji"] else f"Session: {time_str}")
-            if "token_rate" in metrics:
-                rate = metrics["token_rate"]
-                perf_parts.append(f"⚙ {rate:.0f}t/s" if not config["no_emoji"] else f"Rate: {rate:.0f}t/s")
             if "message_count" in metrics:
                 count = metrics["message_count"]
                 perf_parts.append(f"💬 {count}" if not config["no_emoji"] else f"Messages: {count}")
