@@ -19,7 +19,7 @@ import subprocess
 from datetime import datetime, timedelta
 import argparse
 
-__version__ = "0.5.22"
+__version__ = "0.5.23"
 
 # Pricing data embedded from https://docs.anthropic.com/en/docs/about-claude/pricing
 # All prices in USD per million tokens
@@ -675,12 +675,12 @@ def calculate_performance_badge(cache_hit_rate, avg_response_time, cache_thresho
     
     # Choose characters based on emoji preference
     active_char = "*" if no_emoji else "●"
-    inactive_char = "o" if no_emoji else "○"
+    inactive_char = "o" if no_emoji else "●"  # Use filled circle for inactive too
     
     # Generate badge string with colors if requested
     if colored:
-        # Define colors for each level: green, yellow, orange, red
-        colors = [82, 226, 208, 196]  # ANSI 256-color codes
+        # Define colors for each level: green, darker yellow, orange, red
+        colors = [82, 220, 208, 196]  # ANSI 256-color codes (220 is darker yellow)
         
         if powerline:
             # Powerline style: colored active dot, black inactive dots
