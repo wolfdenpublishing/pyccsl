@@ -12,7 +12,7 @@ import subprocess
 from datetime import datetime, timedelta
 import argparse
 
-__version__ = "0.1.1"
+__version__ = "0.1.2"
 
 # Default field list
 DEFAULT_FIELDS = ["badge", "folder", "git", "model", "input", "output", "cost"]
@@ -132,15 +132,61 @@ def parse_arguments():
         "fields": fields
     }
 
+def read_input():
+    """Read and parse JSON input from stdin."""
+    try:
+        # Check if stdin has data (not a terminal)
+        if sys.stdin.isatty():
+            print("Error: No input provided. Expected JSON via stdin.", file=sys.stderr)
+            sys.exit(2)
+        
+        # Read from stdin
+        input_data = sys.stdin.read()
+        
+        if not input_data.strip():
+            print("Error: Empty input received.", file=sys.stderr)
+            sys.exit(2)
+        
+        # Parse JSON
+        try:
+            data = json.loads(input_data)
+        except json.JSONDecodeError as e:
+            print(f"Error: Invalid JSON input: {e}", file=sys.stderr)
+            sys.exit(2)
+        
+        return data
+        
+    except Exception as e:
+        print(f"Error reading input: {e}", file=sys.stderr)
+        sys.exit(2)
+
+def extract_model_info(data):
+    """Extract model information from input data."""
+    try:
+        # Try to get model display_name
+        if "model" in data and isinstance(data["model"], dict):
+            display_name = data["model"].get("display_name", "Unknown")
+            model_id = data["model"].get("id", None)
+            return {"display_name": display_name, "id": model_id}
+        else:
+            # Fallback if model not present
+            return {"display_name": "Unknown", "id": None}
+    except Exception:
+        return {"display_name": "Unknown", "id": None}
+
 def main():
     """Main entry point."""
     # Parse arguments
     config = parse_arguments()
     
-    # For now, just print the parsed configuration
-    print(f"pyccsl v{__version__} - Configuration parsed successfully")
-    print(f"Theme: {config['theme']}")
-    print(f"Fields: {', '.join(config['fields'])}")
+    # Read input
+    input_data = read_input()
+    
+    # Extract model info
+    model_info = extract_model_info(input_data)
+    
+    # For now, just print the model name
+    print(model_info["display_name"])
     
     return 0
 
