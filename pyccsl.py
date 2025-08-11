@@ -12,7 +12,7 @@ import subprocess
 from datetime import datetime, timedelta
 import argparse
 
-__version__ = "0.3.0"
+__version__ = "0.4.15"
 
 # Pricing data embedded from https://docs.anthropic.com/en/docs/about-claude/pricing
 # All prices in USD per million tokens
@@ -82,6 +82,139 @@ PRICING_DATA = {
         "output": 1.25
     }
 }
+
+# Theme definitions - 256-color ANSI codes
+THEMES = {
+    "default": {
+        "folder": 208,     # Orange
+        "git": 39,         # Blue
+        "model": 141,      # Purple
+        "input": 83,       # Green
+        "output": 214,     # Gold
+        "cost": 214        # Gold (same as output)
+    },
+    "solarized": {
+        "folder": 136,     # Yellow
+        "git": 33,         # Blue
+        "model": 61,       # Purple
+        "input": 64,       # Green
+        "output": 166,     # Orange
+        "cost": 166        # Orange
+    },
+    "nord": {
+        "folder": 223,     # Light beige
+        "git": 109,        # Blue-green
+        "model": 139,      # Purple
+        "input": 108,      # Green
+        "output": 179,     # Light orange
+        "cost": 179        # Light orange
+    },
+    "dracula": {
+        "folder": 215,     # Orange
+        "git": 117,        # Cyan
+        "model": 141,      # Purple
+        "input": 84,       # Green
+        "output": 222,     # Yellow
+        "cost": 222        # Yellow
+    },
+    "gruvbox": {
+        "folder": 172,     # Orange
+        "git": 66,         # Blue
+        "model": 132,      # Purple
+        "input": 106,      # Green
+        "output": 214,     # Yellow
+        "cost": 214        # Yellow
+    },
+    "tokyo": {
+        "folder": 203,     # Pink
+        "git": 75,         # Blue
+        "model": 176,      # Purple
+        "input": 115,      # Green
+        "output": 221,     # Yellow
+        "cost": 221        # Yellow
+    },
+    "catppuccin": {
+        "folder": 217,     # Peach
+        "git": 117,        # Sky
+        "model": 183,      # Mauve
+        "input": 120,      # Green
+        "output": 223,     # Yellow
+        "cost": 223        # Yellow
+    },
+    "minimal": {
+        "folder": 242,     # Gray
+        "git": 245,        # Light gray
+        "model": 248,      # Lighter gray
+        "input": 250,      # Very light gray
+        "output": 252,     # Almost white
+        "cost": 252        # Almost white
+    },
+    "none": {}             # No colors
+}
+
+# ANSI color code helpers
+RESET = "\033[0m"
+BOLD = "\033[1m"
+GRAY_50 = "\033[38;5;244m"  # 50% gray for badge
+
+def apply_color(text, fg_color=None, bg_color=None, bold=False):
+    """Apply ANSI color codes to text.
+    
+    Args:
+        text: The text to colorize
+        fg_color: Foreground color code (0-255) or None
+        bg_color: Background color code (0-255) or None
+        bold: Whether to make text bold
+        
+    Returns:
+        Colored text with reset code at end
+    """
+    if not text:
+        return text
+        
+    codes = []
+    if bold:
+        codes.append("1")
+    if fg_color is not None:
+        codes.append(f"38;5;{fg_color}")
+    if bg_color is not None:
+        codes.append(f"48;5;{bg_color}")
+        
+    if codes:
+        return f"\033[{';'.join(codes)}m{text}{RESET}"
+    return text
+
+def get_field_color(field, theme_colors):
+    """Get the color for a field based on the theme.
+    
+    Args:
+        field: The field name
+        theme_colors: Theme color dictionary
+        
+    Returns:
+        Color code or None
+    """
+    if not theme_colors:  # none theme
+        return None
+        
+    # Map fields to their color categories
+    if field == "badge":
+        return 244  # Always 50% gray for badge
+    elif field in ["folder"]:
+        return theme_colors.get("folder")
+    elif field in ["git"]:
+        return theme_colors.get("git")
+    elif field in ["model", "perf-cache-rate", "perf-response-time", 
+                   "perf-session-time", "perf-token-rate", "perf-message-count",
+                   "perf-all-metrics"]:
+        return theme_colors.get("model")
+    elif field in ["input"]:
+        return theme_colors.get("input")
+    elif field in ["output", "context"]:
+        return theme_colors.get("output")
+    elif field in ["cost"]:
+        return theme_colors.get("cost")
+    return None
 
 # Default field list
 DEFAULT_FIELDS = ["badge", "folder", "git", "model", "context", "cost"]
@@ -458,7 +591,7 @@ def format_number(value, style="compact"):
     else:  # raw
         return str(value)
 
-def calculate_performance_badge(cache_hit_rate, avg_response_time, cache_thresholds, response_thresholds):
+def calculate_performance_badge(cache_hit_rate, avg_response_time, cache_thresholds, response_thresholds, colored=False):
     """Calculate performance badge based on metrics and thresholds.
     
     Args:
@@ -466,6 +599,7 @@ def calculate_performance_badge(cache_hit_rate, avg_response_time, cache_thresho
         avg_response_time: Average response time in seconds
         cache_thresholds: List of [green, yellow, orange] thresholds for cache hit rate
         response_thresholds: List of [green, yellow, orange] thresholds for response time
+        colored: Whether to apply colors to the badge
     
     Returns:
         Badge string (e.g., "●○○○", "○●○○", "○○●○", "○○○●")
@@ -494,9 +628,25 @@ def calculate_performance_badge(cache_hit_rate, avg_response_time, cache_thresho
     # Combine metrics (take the worse of the two)
     overall_level = max(cache_level, response_level)
     
-    # Generate badge string
-    badges = ["●○○○", "○●○○", "○○●○", "○○○●"]
-    return badges[overall_level]
+    # Generate badge string with colors if requested
+    if colored:
+        # Define colors for each level: green, yellow, orange, red
+        colors = [82, 226, 208, 196]  # ANSI 256-color codes
+        gray = 244  # Gray for inactive dots
+        
+        dots = []
+        for i in range(4):
+            if i == overall_level:
+                # Active dot with its color
+                dots.append(apply_color("●", fg_color=colors[i]))
+            else:
+                # Inactive dot - gray outline
+                dots.append(apply_color("○", fg_color=gray))
+        return "".join(dots)
+    else:
+        # Plain badge without colors
+        badges = ["●○○○", "○●○○", "○○●○", "○○○●"]
+        return badges[overall_level]
 
 def calculate_performance_metrics(transcript_entries, token_totals):
     """Calculate performance metrics from transcript.
@@ -631,16 +781,22 @@ def format_output(config, model_info, input_data, metrics=None):
     else:  # simple
         separator = " > "
     
+    # Get theme colors
+    theme_colors = THEMES.get(config["theme"], {})
+    
     # Process fields in FIELD_ORDER sequence
     for field in FIELD_ORDER:
         if field not in config["fields"]:
             continue
             
+        # Prepare field content
+        field_content = None
+        
         # Handle different fields
         if field == "badge" and "badge" in metrics:
-            output_parts.append(metrics["badge"])
+            field_content = metrics["badge"]
         elif field == "model":
-            output_parts.append(model_info["display_name"])
+            field_content = model_info["display_name"]
         elif field == "folder":
             # Extract folder name from cwd
             cwd = input_data.get("cwd", os.getcwd())
@@ -651,62 +807,62 @@ def format_output(config, model_info, input_data, metrics=None):
             # Truncate if too long
             if len(folder_name) > 20:
                 folder_name = folder_name[:17] + "..."
-            output_parts.append(folder_name)
+            field_content = folder_name
         elif field == "input" and any(k in metrics for k in ["input_tokens", "cache_creation_tokens", "cache_read_tokens"]):
             # Display as tuple: (base, cache_write, cache_read)
             base = format_number(metrics.get("input_tokens", 0), config["numbers"])
             cache_write = format_number(metrics.get("cache_creation_tokens", 0), config["numbers"])
             cache_read = format_number(metrics.get("cache_read_tokens", 0), config["numbers"])
-            output_parts.append(f"↑ ({base}, {cache_write}, {cache_read})")
+            field_content = f"↑ ({base}, {cache_write}, {cache_read})"
         elif field == "output" and "output_tokens" in metrics:
-            output_parts.append(f"↓ {format_number(metrics['output_tokens'], config['numbers'])}")
+            field_content = f"↓ {format_number(metrics['output_tokens'], config['numbers'])}"
         elif field == "context" and "context_size" in metrics:
-            output_parts.append(f"⧉ {format_number(metrics['context_size'], config['numbers'])}")
+            field_content = f"⧉ {format_number(metrics['context_size'], config['numbers'])}"
         elif field == "cost" and "cost_formatted" in metrics:
-            output_parts.append(metrics["cost_formatted"])
+            field_content = metrics["cost_formatted"]
         elif field == "git" and "git_info" in metrics:
             # Format git status: "branch ●" if modified, "branch" if clean
             branch = metrics["git_info"]["branch"]
             modified = metrics["git_info"]["modified_count"]
             if modified > 0:
-                output_parts.append(f"{branch} ●")
+                field_content = f"{branch} ●"
             else:
-                output_parts.append(branch)
+                field_content = branch
         elif field == "perf-cache-rate" and "cache_hit_rate" in metrics:
             # Format cache hit rate as percentage
             rate = metrics["cache_hit_rate"] * 100
             if config["no_emoji"]:
-                output_parts.append(f"Cache: {rate:.0f}%")
+                field_content = f"Cache: {rate:.0f}%"
             else:
-                output_parts.append(f"⚡{rate:.0f}%")
+                field_content = f"⚡{rate:.0f}%"
         elif field == "perf-response-time" and "avg_response_time" in metrics:
             # Format average response time
             time_str = format_duration(metrics["avg_response_time"])
             if config["no_emoji"]:
-                output_parts.append(f"Response: {time_str}")
+                field_content = f"Response: {time_str}"
             else:
-                output_parts.append(f"⏱{time_str}")
+                field_content = f"⏱{time_str}"
         elif field == "perf-session-time" and "session_duration" in metrics:
             # Format session duration
             time_str = format_duration(metrics["session_duration"])
             if config["no_emoji"]:
-                output_parts.append(f"Session: {time_str}")
+                field_content = f"Session: {time_str}"
             else:
-                output_parts.append(f"🕐{time_str}")
+                field_content = f"🕐{time_str}"
         elif field == "perf-token-rate" and "token_rate" in metrics:
             # Format token generation rate
             rate = metrics["token_rate"]
             if config["no_emoji"]:
-                output_parts.append(f"Rate: {rate:.0f} t/s")
+                field_content = f"Rate: {rate:.0f} t/s"
             else:
-                output_parts.append(f"⚙{rate:.0f} t/s")
+                field_content = f"⚙{rate:.0f} t/s"
         elif field == "perf-message-count" and "message_count" in metrics:
             # Format message count
             count = metrics["message_count"]
             if config["no_emoji"]:
-                output_parts.append(f"Messages: {count}")
+                field_content = f"Messages: {count}"
             else:
-                output_parts.append(f"💬{count}")
+                field_content = f"💬{count}"
         elif field == "perf-all-metrics":
             # Show all performance metrics together
             perf_parts = []
@@ -726,8 +882,16 @@ def format_output(config, model_info, input_data, metrics=None):
                 count = metrics["message_count"]
                 perf_parts.append(f"💬{count}" if not config["no_emoji"] else f"Messages: {count}")
             if perf_parts:
-                output_parts.append(" ".join(perf_parts))
-        # All fields have been implemented
+                field_content = " ".join(perf_parts)
+        
+        # Apply color to field content and add to output
+        if field_content:
+            # Badge already has its own colors, don't override
+            if field != "badge":
+                color = get_field_color(field, theme_colors)
+                if color is not None:
+                    field_content = apply_color(field_content, fg_color=color)
+            output_parts.append(field_content)
     
     # Join parts with separator
     return separator.join(output_parts)
@@ -778,11 +942,14 @@ def main():
         
         # Calculate performance badge
         if "cache_hit_rate" in metrics and "avg_response_time" in metrics:
+            # Badge should be colored unless theme is "none"
+            colored = config["theme"] != "none"
             badge = calculate_performance_badge(
                 metrics["cache_hit_rate"],
                 metrics["avg_response_time"],
                 config["cache_thresholds"],
-                config["response_thresholds"]
+                config["response_thresholds"],
+                colored=colored
             )
             metrics["badge"] = badge
     
