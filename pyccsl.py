@@ -12,7 +12,7 @@ import subprocess
 from datetime import datetime, timedelta
 import argparse
 
-__version__ = "0.4.16"
+__version__ = "0.4.17"
 
 # Pricing data embedded from https://docs.anthropic.com/en/docs/about-claude/pricing
 # All prices in USD per million tokens
@@ -594,7 +594,7 @@ def format_number(value, style="compact"):
     else:  # raw
         return str(value)
 
-def calculate_performance_badge(cache_hit_rate, avg_response_time, cache_thresholds, response_thresholds, colored=False, powerline=False):
+def calculate_performance_badge(cache_hit_rate, avg_response_time, cache_thresholds, response_thresholds, colored=False, powerline=False, no_emoji=False):
     """Calculate performance badge based on metrics and thresholds.
     
     Args:
@@ -632,6 +632,10 @@ def calculate_performance_badge(cache_hit_rate, avg_response_time, cache_thresho
     # Combine metrics (take the worse of the two)
     overall_level = max(cache_level, response_level)
     
+    # Choose characters based on emoji preference
+    active_char = "*" if no_emoji else "●"
+    inactive_char = "o" if no_emoji else "○"
+    
     # Generate badge string with colors if requested
     if colored:
         # Define colors for each level: green, yellow, orange, red
@@ -643,10 +647,10 @@ def calculate_performance_badge(cache_hit_rate, avg_response_time, cache_thresho
             for i in range(4):
                 if i == overall_level:
                     # Active dot with its color
-                    dots.append(apply_color("●", fg_color=colors[i]))
+                    dots.append(apply_color(active_char, fg_color=colors[i]))
                 else:
                     # Inactive dot - black
-                    dots.append(apply_color("○", fg_color=0))
+                    dots.append(apply_color(inactive_char, fg_color=0))
             return "".join(dots)
         else:
             # Regular style: colored active dot, gray inactive dots
@@ -655,14 +659,19 @@ def calculate_performance_badge(cache_hit_rate, avg_response_time, cache_thresho
             for i in range(4):
                 if i == overall_level:
                     # Active dot with its color
-                    dots.append(apply_color("●", fg_color=colors[i]))
+                    dots.append(apply_color(active_char, fg_color=colors[i]))
                 else:
                     # Inactive dot - gray outline
-                    dots.append(apply_color("○", fg_color=gray))
+                    dots.append(apply_color(inactive_char, fg_color=gray))
             return "".join(dots)
     else:
         # Plain badge without colors
-        badges = ["●○○○", "○●○○", "○○●○", "○○○●"]
+        badges = [
+            f"{active_char}{inactive_char}{inactive_char}{inactive_char}",
+            f"{inactive_char}{active_char}{inactive_char}{inactive_char}",
+            f"{inactive_char}{inactive_char}{active_char}{inactive_char}",
+            f"{inactive_char}{inactive_char}{inactive_char}{active_char}"
+        ]
         return badges[overall_level]
 
 def calculate_performance_metrics(transcript_entries, token_totals):
@@ -831,11 +840,14 @@ def format_output(config, model_info, input_data, metrics=None):
             base = format_number(metrics.get("input_tokens", 0), config["numbers"])
             cache_write = format_number(metrics.get("cache_creation_tokens", 0), config["numbers"])
             cache_read = format_number(metrics.get("cache_read_tokens", 0), config["numbers"])
-            field_content = f"↑ ({base}, {cache_write}, {cache_read})"
+            prefix = "In:" if config["no_emoji"] else "↑"
+            field_content = f"{prefix} ({base}, {cache_write}, {cache_read})"
         elif field == "output" and "output_tokens" in metrics:
-            field_content = f"↓ {format_number(metrics['output_tokens'], config['numbers'])}"
+            prefix = "Out:" if config["no_emoji"] else "↓"
+            field_content = f"{prefix} {format_number(metrics['output_tokens'], config['numbers'])}"
         elif field == "context" and "context_size" in metrics:
-            field_content = f"⧉ {format_number(metrics['context_size'], config['numbers'])}"
+            prefix = "Ctx:" if config["no_emoji"] else "⧉"
+            field_content = f"{prefix} {format_number(metrics['context_size'], config['numbers'])}"
         elif field == "cost" and "cost_formatted" in metrics:
             field_content = metrics["cost_formatted"]
         elif field == "git" and "git_info" in metrics:
@@ -843,7 +855,8 @@ def format_output(config, model_info, input_data, metrics=None):
             branch = metrics["git_info"]["branch"]
             modified = metrics["git_info"]["modified_count"]
             if modified > 0:
-                field_content = f"{branch} ●"
+                indicator = "*" if config["no_emoji"] else "●"
+                field_content = f"{branch} {indicator}"
             else:
                 field_content = branch
         elif field == "perf-cache-rate" and "cache_hit_rate" in metrics:
@@ -949,7 +962,7 @@ def format_output(config, model_info, input_data, metrics=None):
                 continue
             
             # Special handling for badge which already has embedded colors
-            if i == 0 and "○" in text:  # This is the badge
+            if i == 0 and ("○" in text or "o" in text):  # This is the badge (with or without emoji)
                 # Rebuild badge with white background maintained throughout
                 # The text contains ANSI codes that reset, so we need to reconstruct it
                 badge_parts = []
@@ -1059,7 +1072,8 @@ def main():
                 config["cache_thresholds"],
                 config["response_thresholds"],
                 colored=colored,
-                powerline=is_powerline
+                powerline=is_powerline,
+                no_emoji=config["no_emoji"]
             )
             metrics["badge"] = badge
     
