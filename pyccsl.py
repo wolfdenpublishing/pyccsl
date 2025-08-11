@@ -12,7 +12,7 @@ import subprocess
 from datetime import datetime, timedelta
 import argparse
 
-__version__ = "0.2.8"
+__version__ = "0.2.9"
 
 # Pricing data embedded from https://docs.anthropic.com/en/docs/about-claude/pricing
 # All prices in USD per million tokens
@@ -84,7 +84,7 @@ PRICING_DATA = {
 }
 
 # Default field list
-DEFAULT_FIELDS = ["badge", "folder", "git", "model", "input", "output", "cost"]
+DEFAULT_FIELDS = ["badge", "folder", "git", "model", "context", "cost"]
 
 # All available fields in display order
 FIELD_ORDER = [
@@ -100,6 +100,7 @@ FIELD_ORDER = [
     "perf-all-metrics",
     "input",
     "output",
+    "context",
     "cost"
 ]
 
@@ -383,6 +384,28 @@ def format_cost(cost):
         cents = int(round(cost * 100))
         return f"{cents}¢"
 
+def format_number(value, style="compact"):
+    """Format a number based on style preference.
+    
+    Args:
+        value: Number to format
+        style: "compact" (1.2K), "full" (1,234), or "raw" (1234)
+    
+    Returns:
+        Formatted string
+    """
+    if style == "compact":
+        if value >= 1_000_000:
+            return f"{value/1_000_000:.1f}M"
+        elif value >= 1_000:
+            return f"{value/1_000:.1f}K"
+        else:
+            return str(value)
+    elif style == "full":
+        return f"{value:,}"
+    else:  # raw
+        return str(value)
+
 def calculate_performance_badge(cache_hit_rate, avg_response_time, cache_thresholds, response_thresholds):
     """Calculate performance badge based on metrics and thresholds.
     
@@ -551,6 +574,16 @@ def format_output(config, model_info, input_data, metrics=None):
             output_parts.append(metrics["badge"])
         elif field == "model":
             output_parts.append(model_info["display_name"])
+        elif field == "input" and any(k in metrics for k in ["input_tokens", "cache_creation_tokens", "cache_read_tokens"]):
+            # Display as tuple: (base, cache_write, cache_read)
+            base = format_number(metrics.get("input_tokens", 0), config["numbers"])
+            cache_write = format_number(metrics.get("cache_creation_tokens", 0), config["numbers"])
+            cache_read = format_number(metrics.get("cache_read_tokens", 0), config["numbers"])
+            output_parts.append(f"↑ ({base},{cache_write},{cache_read})")
+        elif field == "output" and "output_tokens" in metrics:
+            output_parts.append(f"↓ {format_number(metrics['output_tokens'], config['numbers'])}")
+        elif field == "context" and "context_size" in metrics:
+            output_parts.append(f"⧉ {format_number(metrics['context_size'], config['numbers'])}")
         elif field == "cost" and "cost_formatted" in metrics:
             output_parts.append(metrics["cost_formatted"])
         # Other fields will be implemented in future phases
@@ -580,6 +613,12 @@ def main():
         # Calculate token usage
         token_totals = calculate_token_usage(transcript_entries)
         metrics.update(token_totals)
+        
+        # Calculate context size (everything except cache reads)
+        context_size = (token_totals.get("input_tokens", 0) + 
+                       token_totals.get("cache_creation_tokens", 0) + 
+                       token_totals.get("output_tokens", 0))
+        metrics["context_size"] = context_size
         
         # Get model ID (from transcript or input)
         model_id = get_model_from_transcript(transcript_entries) or model_info.get("id")

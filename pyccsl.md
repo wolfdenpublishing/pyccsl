@@ -95,26 +95,29 @@ Fields are always displayed in this order, regardless of how they're specified:
 | `perf-token-rate` | Token generation rate (⚙94 t/s) | |
 | `perf-message-count` | Number of messages (💬12) | |
 | `perf-all-metrics` | All performance metrics | |
-| `input` | Input token count | ✓ |
-| `output` | Output token count | ✓ |
+| `input` | Input tokens as tuple: (base, cache_write, cache_read) | |
+| `output` | Output token count | |
+| `context` | Context size (input + cache_write + output) | ✓ |
 | `cost` | Session cost in USD | ✓ |
 
 ## Examples
 
 ### Default Configuration
 ```bash
-# Shows: badge, folder, git, model, input, output, cost
+# Shows: badge, folder, git, model, context, cost
 python3 ~/.claude/pyccsl.py
 
-# Output: ●○○○ my-project > main ● > Sonnet 3.5 > ↑ 1.2K > ↓ 15.3K > 48¢
+# Output: ●○○○ my-project > main ● > Sonnet 3.5 > ⧉ 16.5K > 48¢
 ```
 
-### Minimal Display
+### Token Display
 ```bash
-# Show only model and token counts
-python3 ~/.claude/pyccsl.py model,input,output
+# Show model with detailed token breakdown
+python3 ~/.claude/pyccsl.py model,input,output,context
 
-# Output: Sonnet 3.5 > ↑ 1.2K > ↓ 15.3K
+# Output: Sonnet 3.5 > ↑ (53,54.8K,251.0K) > ↓ 2.6K > ⧉ 57.5K
+# Input shows: (base, cache_write, cache_read)
+# Context shows: base + cache_write + output
 ```
 
 ### Performance Monitoring
