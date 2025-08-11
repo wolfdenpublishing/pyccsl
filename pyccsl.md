@@ -69,15 +69,15 @@ Disable emoji in output (useful for terminals without emoji support).
 
 ### `--perf-cache GREEN,YELLOW,ORANGE`
 Set cache hit rate thresholds (percentages).
-- Default: `60,40,20`
-- Example: `--perf-cache 70,50,30`
-- Interpretation: ≥70% = green, ≥50% = yellow, ≥30% = orange, <30% = red
+- Default: `95,90,75`
+- Example: `--perf-cache 97,92,80`
+- Interpretation: ≥97% = green, ≥92% = yellow, ≥80% = orange, <80% = red
 
 ### `--perf-response GREEN,YELLOW,ORANGE`
 Set response time thresholds (seconds).
-- Default: `3,5,8`
-- Example: `--perf-response 2,4,6`
-- Interpretation: ≤2s = green, ≤4s = yellow, ≤6s = orange, >6s = red
+- Default: `10,30,60`
+- Example: `--perf-response 5,20,45`
+- Interpretation: ≤5s = green, ≤20s = yellow, ≤45s = orange, >45s = red
 
 ## Display Fields
 

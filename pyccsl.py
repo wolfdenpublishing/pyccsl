@@ -19,7 +19,7 @@ import subprocess
 from datetime import datetime, timedelta
 import argparse
 
-__version__ = "0.5.23"
+__version__ = "0.5.24"
 
 # Pricing data embedded from https://docs.anthropic.com/en/docs/about-claude/pricing
 # All prices in USD per million tokens
@@ -301,15 +301,15 @@ def parse_arguments():
     # Performance thresholds - cache
     parser.add_argument(
         "--perf-cache",
-        default=os.environ.get("PYCCSL_PERF_CACHE", "60,40,20"),
-        help="Cache hit rate thresholds (green,yellow,orange) (default: 60,40,20)"
+        default=os.environ.get("PYCCSL_PERF_CACHE", "95,90,75"),
+        help="Cache hit rate thresholds (green,yellow,orange) (default: 95,90,75)"
     )
     
     # Performance thresholds - response
     parser.add_argument(
         "--perf-response",
-        default=os.environ.get("PYCCSL_PERF_RESPONSE", "3,5,8"),
-        help="Response time thresholds (green,yellow,orange) (default: 3,5,8)"
+        default=os.environ.get("PYCCSL_PERF_RESPONSE", "10,30,60"),
+        help="Response time thresholds (green,yellow,orange) (default: 10,30,60)"
     )
     
     # Fields to display (positional argument)
@@ -673,9 +673,11 @@ def calculate_performance_badge(cache_hit_rate, avg_response_time, cache_thresho
     # Combine metrics (take the worse of the two)
     overall_level = max(cache_level, response_level)
     
-    # Choose characters based on emoji preference
+    # Choose characters based on emoji preference and color availability
     active_char = "*" if no_emoji else "●"
-    inactive_char = "o" if no_emoji else "●"  # Use filled circle for inactive too
+    # When no colors, use open circles for inactive so they're distinguishable
+    # When colors are used, use filled circles for both (distinguished by color)
+    inactive_char = "o" if no_emoji else ("○" if not colored else "●")
     
     # Generate badge string with colors if requested
     if colored:
