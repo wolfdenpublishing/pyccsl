@@ -12,7 +12,7 @@ import subprocess
 from datetime import datetime, timedelta
 import argparse
 
-__version__ = "0.2.9"
+__version__ = "0.2.10"
 
 # Pricing data embedded from https://docs.anthropic.com/en/docs/about-claude/pricing
 # All prices in USD per million tokens
@@ -579,7 +579,7 @@ def format_output(config, model_info, input_data, metrics=None):
             base = format_number(metrics.get("input_tokens", 0), config["numbers"])
             cache_write = format_number(metrics.get("cache_creation_tokens", 0), config["numbers"])
             cache_read = format_number(metrics.get("cache_read_tokens", 0), config["numbers"])
-            output_parts.append(f"↑ ({base},{cache_write},{cache_read})")
+            output_parts.append(f"↑ ({base}, {cache_write}, {cache_read})")
         elif field == "output" and "output_tokens" in metrics:
             output_parts.append(f"↓ {format_number(metrics['output_tokens'], config['numbers'])}")
         elif field == "context" and "context_size" in metrics:
