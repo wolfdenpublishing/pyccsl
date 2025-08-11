@@ -12,7 +12,7 @@ import subprocess
 from datetime import datetime, timedelta
 import argparse
 
-__version__ = "0.2.12"
+__version__ = "0.2.13"
 
 # Pricing data embedded from https://docs.anthropic.com/en/docs/about-claude/pricing
 # All prices in USD per million tokens
@@ -584,6 +584,21 @@ def calculate_performance_metrics(transcript_entries, token_totals):
     
     return metrics
 
+def format_duration(seconds):
+    """Format duration in seconds to human-readable format."""
+    if seconds < 60:
+        return f"{seconds:.1f}s"
+    elif seconds < 3600:
+        minutes = seconds / 60
+        return f"{minutes:.0f}m"
+    else:
+        hours = seconds / 3600
+        if hours < 24:
+            return f"{hours:.1f}h"
+        else:
+            days = hours / 24
+            return f"{days:.0f}d"
+
 def format_output(config, model_info, input_data, metrics=None):
     """Format the output based on selected fields and configuration.
     
@@ -654,8 +669,62 @@ def format_output(config, model_info, input_data, metrics=None):
                 output_parts.append(f"{branch} ●")
             else:
                 output_parts.append(branch)
-        # Other fields will be implemented in future phases
-        # For now, skip them silently
+        elif field == "perf-cache-rate" and "cache_hit_rate" in metrics:
+            # Format cache hit rate as percentage
+            rate = metrics["cache_hit_rate"] * 100
+            if config["no_emoji"]:
+                output_parts.append(f"Cache: {rate:.0f}%")
+            else:
+                output_parts.append(f"⚡{rate:.0f}%")
+        elif field == "perf-response-time" and "avg_response_time" in metrics:
+            # Format average response time
+            time_str = format_duration(metrics["avg_response_time"])
+            if config["no_emoji"]:
+                output_parts.append(f"Response: {time_str}")
+            else:
+                output_parts.append(f"⏱{time_str}")
+        elif field == "perf-session-time" and "session_duration" in metrics:
+            # Format session duration
+            time_str = format_duration(metrics["session_duration"])
+            if config["no_emoji"]:
+                output_parts.append(f"Session: {time_str}")
+            else:
+                output_parts.append(f"🕐{time_str}")
+        elif field == "perf-token-rate" and "token_rate" in metrics:
+            # Format token generation rate
+            rate = metrics["token_rate"]
+            if config["no_emoji"]:
+                output_parts.append(f"Rate: {rate:.0f} t/s")
+            else:
+                output_parts.append(f"⚙{rate:.0f} t/s")
+        elif field == "perf-message-count" and "message_count" in metrics:
+            # Format message count
+            count = metrics["message_count"]
+            if config["no_emoji"]:
+                output_parts.append(f"Messages: {count}")
+            else:
+                output_parts.append(f"💬{count}")
+        elif field == "perf-all-metrics":
+            # Show all performance metrics together
+            perf_parts = []
+            if "cache_hit_rate" in metrics:
+                rate = metrics["cache_hit_rate"] * 100
+                perf_parts.append(f"⚡{rate:.0f}%" if not config["no_emoji"] else f"Cache: {rate:.0f}%")
+            if "avg_response_time" in metrics:
+                time_str = format_duration(metrics["avg_response_time"])
+                perf_parts.append(f"⏱{time_str}" if not config["no_emoji"] else f"Response: {time_str}")
+            if "session_duration" in metrics:
+                time_str = format_duration(metrics["session_duration"])
+                perf_parts.append(f"🕐{time_str}" if not config["no_emoji"] else f"Session: {time_str}")
+            if "token_rate" in metrics:
+                rate = metrics["token_rate"]
+                perf_parts.append(f"⚙{rate:.0f} t/s" if not config["no_emoji"] else f"Rate: {rate:.0f} t/s")
+            if "message_count" in metrics:
+                count = metrics["message_count"]
+                perf_parts.append(f"💬{count}" if not config["no_emoji"] else f"Messages: {count}")
+            if perf_parts:
+                output_parts.append(" ".join(perf_parts))
+        # All fields have been implemented
     
     # Join parts with separator
     return separator.join(output_parts)
