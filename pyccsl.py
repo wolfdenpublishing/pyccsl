@@ -91,7 +91,7 @@ THEMES = {
         "model": 141,      # Purple
         "input": 83,       # Green
         "output": 214,     # Gold
-        "cost": 214        # Gold (same as output)
+        "cost": 196        # Red
     },
     "solarized": {
         "folder": 136,     # Yellow
@@ -99,7 +99,7 @@ THEMES = {
         "model": 61,       # Purple
         "input": 64,       # Green
         "output": 166,     # Orange
-        "cost": 166        # Orange
+        "cost": 160        # Red
     },
     "nord": {
         "folder": 223,     # Light beige
@@ -107,7 +107,7 @@ THEMES = {
         "model": 139,      # Purple
         "input": 108,      # Green
         "output": 179,     # Light orange
-        "cost": 179        # Light orange
+        "cost": 167        # Nord red
     },
     "dracula": {
         "folder": 215,     # Orange
@@ -115,7 +115,7 @@ THEMES = {
         "model": 141,      # Purple
         "input": 84,       # Green
         "output": 222,     # Yellow
-        "cost": 222        # Yellow
+        "cost": 203        # Dracula red
     },
     "gruvbox": {
         "folder": 172,     # Orange
@@ -123,7 +123,7 @@ THEMES = {
         "model": 132,      # Purple
         "input": 106,      # Green
         "output": 214,     # Yellow
-        "cost": 214        # Yellow
+        "cost": 167        # Gruvbox red
     },
     "tokyo": {
         "folder": 203,     # Pink
@@ -131,7 +131,7 @@ THEMES = {
         "model": 176,      # Purple
         "input": 115,      # Green
         "output": 221,     # Yellow
-        "cost": 221        # Yellow
+        "cost": 197        # Tokyo red
     },
     "catppuccin": {
         "folder": 217,     # Peach
@@ -139,7 +139,7 @@ THEMES = {
         "model": 183,      # Mauve
         "input": 120,      # Green
         "output": 223,     # Yellow
-        "cost": 223        # Yellow
+        "cost": 210        # Catppuccin red
     },
     "minimal": {
         "folder": 242,     # Gray
@@ -147,7 +147,7 @@ THEMES = {
         "model": 248,      # Lighter gray
         "input": 250,      # Very light gray
         "output": 252,     # Almost white
-        "cost": 252        # Almost white
+        "cost": 252        # Almost white (keep for minimal)
     },
     "none": {}             # No colors
 }
@@ -156,6 +156,9 @@ THEMES = {
 RESET = "\033[0m"
 BOLD = "\033[1m"
 GRAY_50 = "\033[38;5;244m"  # 50% gray for badge
+
+# Powerline separator
+POWERLINE_RIGHT = "\ue0b0"  # Powerline right arrow (requires powerline font)
 
 def apply_color(text, fg_color=None, bg_color=None, bold=False):
     """Apply ANSI color codes to text.
@@ -591,7 +594,7 @@ def format_number(value, style="compact"):
     else:  # raw
         return str(value)
 
-def calculate_performance_badge(cache_hit_rate, avg_response_time, cache_thresholds, response_thresholds, colored=False):
+def calculate_performance_badge(cache_hit_rate, avg_response_time, cache_thresholds, response_thresholds, colored=False, powerline=False):
     """Calculate performance badge based on metrics and thresholds.
     
     Args:
@@ -600,6 +603,7 @@ def calculate_performance_badge(cache_hit_rate, avg_response_time, cache_thresho
         cache_thresholds: List of [green, yellow, orange] thresholds for cache hit rate
         response_thresholds: List of [green, yellow, orange] thresholds for response time
         colored: Whether to apply colors to the badge
+        powerline: Whether this is for powerline style (different coloring)
     
     Returns:
         Badge string (e.g., "●○○○", "○●○○", "○○●○", "○○○●")
@@ -632,17 +636,30 @@ def calculate_performance_badge(cache_hit_rate, avg_response_time, cache_thresho
     if colored:
         # Define colors for each level: green, yellow, orange, red
         colors = [82, 226, 208, 196]  # ANSI 256-color codes
-        gray = 244  # Gray for inactive dots
         
-        dots = []
-        for i in range(4):
-            if i == overall_level:
-                # Active dot with its color
-                dots.append(apply_color("●", fg_color=colors[i]))
-            else:
-                # Inactive dot - gray outline
-                dots.append(apply_color("○", fg_color=gray))
-        return "".join(dots)
+        if powerline:
+            # Powerline style: colored active dot, black inactive dots
+            dots = []
+            for i in range(4):
+                if i == overall_level:
+                    # Active dot with its color
+                    dots.append(apply_color("●", fg_color=colors[i]))
+                else:
+                    # Inactive dot - black
+                    dots.append(apply_color("○", fg_color=0))
+            return "".join(dots)
+        else:
+            # Regular style: colored active dot, gray inactive dots
+            gray = 244  # Gray for inactive dots
+            dots = []
+            for i in range(4):
+                if i == overall_level:
+                    # Active dot with its color
+                    dots.append(apply_color("●", fg_color=colors[i]))
+                else:
+                    # Inactive dot - gray outline
+                    dots.append(apply_color("○", fg_color=gray))
+            return "".join(dots)
     else:
         # Plain badge without colors
         badges = ["●○○○", "○●○○", "○○●○", "○○○●"]
@@ -767,22 +784,23 @@ def format_output(config, model_info, input_data, metrics=None):
     if metrics is None:
         metrics = {}
     
-    output_parts = []
+    # Get theme colors
+    theme_colors = THEMES.get(config["theme"], {})
+    is_powerline = config["style"] == "powerline"
     
-    # Get separator based on style
+    # Initialize storage based on style
+    output_parts = []  # Used for non-powerline or powerline without theme
+    segments = []  # Used for powerline with theme
+    
+    # Get separator based on style (for non-powerline)
     if config["style"] == "pipes":
         separator = " | "
     elif config["style"] == "arrows":
         separator = " → "
     elif config["style"] == "dots":
         separator = " · "
-    elif config["style"] == "powerline":
-        separator = " > "  # Will be enhanced in future phases
-    else:  # simple
+    else:  # simple or powerline fallback
         separator = " > "
-    
-    # Get theme colors
-    theme_colors = THEMES.get(config["theme"], {})
     
     # Process fields in FIELD_ORDER sequence
     for field in FIELD_ORDER:
@@ -834,67 +852,157 @@ def format_output(config, model_info, input_data, metrics=None):
             if config["no_emoji"]:
                 field_content = f"Cache: {rate:.0f}%"
             else:
-                field_content = f"⚡{rate:.0f}%"
+                field_content = f"⚡ {rate:.0f}%"
         elif field == "perf-response-time" and "avg_response_time" in metrics:
             # Format average response time
             time_str = format_duration(metrics["avg_response_time"])
             if config["no_emoji"]:
                 field_content = f"Response: {time_str}"
             else:
-                field_content = f"⏱{time_str}"
+                field_content = f"⏱ {time_str}"
         elif field == "perf-session-time" and "session_duration" in metrics:
             # Format session duration
             time_str = format_duration(metrics["session_duration"])
             if config["no_emoji"]:
                 field_content = f"Session: {time_str}"
             else:
-                field_content = f"🕐{time_str}"
+                field_content = f"🕐 {time_str}"
         elif field == "perf-token-rate" and "token_rate" in metrics:
             # Format token generation rate
             rate = metrics["token_rate"]
             if config["no_emoji"]:
-                field_content = f"Rate: {rate:.0f} t/s"
+                field_content = f"Rate: {rate:.0f}t/s"
             else:
-                field_content = f"⚙{rate:.0f} t/s"
+                field_content = f"⚙ {rate:.0f}t/s"
         elif field == "perf-message-count" and "message_count" in metrics:
             # Format message count
             count = metrics["message_count"]
             if config["no_emoji"]:
                 field_content = f"Messages: {count}"
             else:
-                field_content = f"💬{count}"
+                field_content = f"💬 {count}"
         elif field == "perf-all-metrics":
             # Show all performance metrics together
             perf_parts = []
             if "cache_hit_rate" in metrics:
                 rate = metrics["cache_hit_rate"] * 100
-                perf_parts.append(f"⚡{rate:.0f}%" if not config["no_emoji"] else f"Cache: {rate:.0f}%")
+                perf_parts.append(f"⚡ {rate:.0f}%" if not config["no_emoji"] else f"Cache: {rate:.0f}%")
             if "avg_response_time" in metrics:
                 time_str = format_duration(metrics["avg_response_time"])
-                perf_parts.append(f"⏱{time_str}" if not config["no_emoji"] else f"Response: {time_str}")
+                perf_parts.append(f"⏱ {time_str}" if not config["no_emoji"] else f"Response: {time_str}")
             if "session_duration" in metrics:
                 time_str = format_duration(metrics["session_duration"])
-                perf_parts.append(f"🕐{time_str}" if not config["no_emoji"] else f"Session: {time_str}")
+                perf_parts.append(f"🕐 {time_str}" if not config["no_emoji"] else f"Session: {time_str}")
             if "token_rate" in metrics:
                 rate = metrics["token_rate"]
-                perf_parts.append(f"⚙{rate:.0f} t/s" if not config["no_emoji"] else f"Rate: {rate:.0f} t/s")
+                perf_parts.append(f"⚙ {rate:.0f}t/s" if not config["no_emoji"] else f"Rate: {rate:.0f}t/s")
             if "message_count" in metrics:
                 count = metrics["message_count"]
-                perf_parts.append(f"💬{count}" if not config["no_emoji"] else f"Messages: {count}")
+                perf_parts.append(f"💬 {count}" if not config["no_emoji"] else f"Messages: {count}")
             if perf_parts:
                 field_content = " ".join(perf_parts)
         
-        # Apply color to field content and add to output
+        # Add field to output
         if field_content:
-            # Badge already has its own colors, don't override
-            if field != "badge":
-                color = get_field_color(field, theme_colors)
-                if color is not None:
-                    field_content = apply_color(field_content, fg_color=color)
-            output_parts.append(field_content)
+            if is_powerline and config["theme"] != "none":
+                # For powerline, store segment with its background color
+                bg_color = get_field_color(field, theme_colors)
+                if field == "badge":
+                    # Badge gets white background in powerline mode
+                    bg_color = 15  # White
+                segments.append((field_content, bg_color))
+            else:
+                # Regular styling - apply foreground color
+                if field != "badge":
+                    color = get_field_color(field, theme_colors)
+                    if color is not None:
+                        field_content = apply_color(field_content, fg_color=color)
+                output_parts.append(field_content)
     
-    # Join parts with separator
-    return separator.join(output_parts)
+    # Build final output
+    if is_powerline and config["theme"] != "none":
+        # Build powerline style output
+        # Group segments by background color
+        grouped_segments = []
+        current_group = []
+        current_bg = None
+        
+        for text, bg_color in segments:
+            if bg_color == current_bg and current_bg is not None:
+                # Same background, add to current group
+                current_group.append(text)
+            else:
+                # New background, save previous group and start new one
+                if current_group:
+                    grouped_segments.append((" ".join(current_group), current_bg))
+                current_group = [text]
+                current_bg = bg_color
+        
+        # Add final group
+        if current_group:
+            grouped_segments.append((" ".join(current_group), current_bg))
+        
+        # Build result with grouped segments
+        result = []
+        for i, (text, bg_color) in enumerate(grouped_segments):
+            if bg_color is None:
+                continue
+            
+            # Special handling for badge which already has embedded colors
+            if i == 0 and "○" in text:  # This is the badge
+                # Rebuild badge with white background maintained throughout
+                # The text contains ANSI codes that reset, so we need to reconstruct it
+                badge_parts = []
+                badge_parts.append("\033[48;5;15m ")  # Start with white background
+                
+                # Parse the badge to maintain white background
+                import re
+                # Split on ANSI codes but keep them
+                parts = re.split(r'(\033\[[^m]+m)', text)
+                for part in parts:
+                    if part.startswith('\033['):
+                        # This is an ANSI code
+                        if part == '\033[0m':  # Reset code
+                            # Replace reset with just white background
+                            badge_parts.append('\033[48;5;15m')
+                        else:
+                            # Keep the foreground color but ensure white background
+                            badge_parts.append(part)
+                            if '48;5' not in part:  # If no background specified
+                                badge_parts.append('\033[48;5;15m')  # Add white background
+                    else:
+                        # Regular text
+                        badge_parts.append(part)
+                
+                badge_parts.append(f" {RESET}")  # End with space and reset
+                segment_text = "".join(badge_parts)
+            else:
+                # Apply background color and black text to segment
+                segment_text = apply_color(f" {text} ", fg_color=0, bg_color=bg_color)
+            result.append(segment_text)
+            
+            # Add separator if not last segment
+            if i < len(grouped_segments) - 1:
+                next_bg = grouped_segments[i + 1][1] if i + 1 < len(grouped_segments) else None
+                if next_bg is not None:
+                    # Separator with current bg as fg, next bg as bg
+                    sep = apply_color(POWERLINE_RIGHT, fg_color=bg_color, bg_color=next_bg)
+                else:
+                    # Final separator with just fg color
+                    sep = apply_color(POWERLINE_RIGHT, fg_color=bg_color)
+                result.append(sep)
+            else:
+                # Final separator with no background
+                sep = apply_color(POWERLINE_RIGHT, fg_color=bg_color)
+                result.append(sep)
+        
+        return "".join(result)
+    elif is_powerline:
+        # Powerline with no colors - use simple separator
+        return " > ".join(output_parts)
+    else:
+        # Join parts with separator for non-powerline styles
+        return separator.join(output_parts)
 
 def main():
     """Main entry point."""
@@ -944,12 +1052,14 @@ def main():
         if "cache_hit_rate" in metrics and "avg_response_time" in metrics:
             # Badge should be colored unless theme is "none"
             colored = config["theme"] != "none"
+            is_powerline = config["style"] == "powerline"
             badge = calculate_performance_badge(
                 metrics["cache_hit_rate"],
                 metrics["avg_response_time"],
                 config["cache_thresholds"],
                 config["response_thresholds"],
-                colored=colored
+                colored=colored,
+                powerline=is_powerline
             )
             metrics["badge"] = badge
     
