@@ -1,5 +1,7 @@
 # pyccsl - Python Claude Code Status Line
 
+> **GitHub Repository**: [https://github.com/wolfdenpublishing/pyccsl](https://github.com/wolfdenpublishing/pyccsl)
+
 ## Overview
 
 `pyccsl` (pronounced "pixel") is a Python-based status line generator for Claude Code that analyzes transcript files to provide performance metrics, session information, and cost calculations. It reads JSON input from stdin and outputs a formatted status line to stdout.

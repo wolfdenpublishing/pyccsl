@@ -3,6 +3,13 @@
 pyccsl - Python Claude Code Status Line
 Generates a customizable status line for Claude Code showing performance metrics,
 git status, session information, and cost calculations.
+
+Exit Codes:
+    0 - Success
+    1 - Configuration/argument error  
+    2 - Input/JSON error
+    3 - File access error (reserved)
+    4 - Runtime/processing error (reserved)
 """
 
 import sys
@@ -12,7 +19,7 @@ import subprocess
 from datetime import datetime, timedelta
 import argparse
 
-__version__ = "0.4.19"
+__version__ = "0.5.0"
 
 # Pricing data embedded from https://docs.anthropic.com/en/docs/about-claude/pricing
 # All prices in USD per million tokens
@@ -335,7 +342,7 @@ def parse_arguments():
         if len(cache_thresholds) != 3:
             raise ValueError("Need exactly 3 cache thresholds")
     except (ValueError, AttributeError):
-        print("Error: Invalid cache thresholds format", file=sys.stderr)
+        print("Error: Invalid cache thresholds format. Expected: three comma-separated numbers (e.g., 60,40,20)", file=sys.stderr)
         sys.exit(1)
     
     try:
@@ -343,7 +350,7 @@ def parse_arguments():
         if len(response_thresholds) != 3:
             raise ValueError("Need exactly 3 response thresholds")
     except (ValueError, AttributeError):
-        print("Error: Invalid response thresholds format", file=sys.stderr)
+        print("Error: Invalid response thresholds format. Expected: three comma-separated numbers (e.g., 3,5,8)", file=sys.stderr)
         sys.exit(1)
     
     return {
@@ -362,7 +369,7 @@ def read_input():
     try:
         # Check if stdin has data (not a terminal)
         if sys.stdin.isatty():
-            print("Error: No input provided. Expected JSON via stdin.", file=sys.stderr)
+            print("Error: No input provided. This script expects JSON data via stdin from Claude Code.", file=sys.stderr)
             sys.exit(2)
         
         # Read from stdin
@@ -495,14 +502,19 @@ def load_transcript(transcript_path, debug=False):
             sys.stderr.write(f"DEBUG: Successfully loaded {len(entries)} transcript entries\n")
         return entries
     except FileNotFoundError:
-        # Transcript file not found - this is expected sometimes
+        # Transcript file not found - this is expected for new sessions
         if debug:
             sys.stderr.write(f"DEBUG: Transcript file not found: {transcript_path}\n")
         return []
-    except Exception as e:
-        # Other errors reading file
+    except (PermissionError, IOError) as e:
+        # File access errors
         if debug:
-            sys.stderr.write(f"DEBUG: Error reading transcript file: {e}\n")
+            sys.stderr.write(f"DEBUG: Cannot access transcript file: {e}\n")
+        return []
+    except Exception as e:
+        # Other unexpected errors
+        if debug:
+            sys.stderr.write(f"DEBUG: Unexpected error reading transcript: {e}\n")
         return []
 
 def calculate_token_usage(transcript_entries):

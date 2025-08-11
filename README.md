@@ -4,7 +4,7 @@
 
 [![Python](https://img.shields.io/badge/python-3.8%2B-blue)](https://www.python.org/)
 [![License](https://img.shields.io/badge/license-MIT-green)](LICENSE)
-[![Version](https://img.shields.io/badge/version-0.4.17-orange)](https://github.com/yourusername/pyccsl/releases)
+[![Version](https://img.shields.io/badge/version-0.4.17-orange)](https://github.com/wolfdenpublishing/pyccsl/releases)
 [![Dependencies](https://img.shields.io/badge/dependencies-zero-brightgreen)](pyccsl.py)
 [![Lines](https://img.shields.io/badge/lines-~1000-lightgrey)](pyccsl.py)
 
@@ -13,6 +13,8 @@
 ![Hero Screenshot](images/hero-default.png)
 
 *Real-time metrics • Cost tracking • Git status • Token usage • 9 themes • Zero dependencies*
+
+📖 **[User Guide](pyccsl.md)** | 🔗 **[GitHub](https://github.com/wolfdenpublishing/pyccsl)** | 📝 **[Issues](https://github.com/wolfdenpublishing/pyccsl/issues)**
 
 </div>
 
@@ -139,7 +141,7 @@ Four-level performance indicator:
 
 1. Download the script:
 ```bash
-curl -O https://raw.githubusercontent.com/yourusername/pyccsl/main/pyccsl.py
+curl -O https://raw.githubusercontent.com/wolfdenpublishing/pyccsl/main/pyccsl.py
 chmod +x pyccsl.py
 ```
 
@@ -442,8 +444,8 @@ MIT License - See [LICENSE](LICENSE) file for details
 ## Links
 
 - [Claude Code Documentation](https://docs.anthropic.com/en/docs/claude-code)
-- [Issue Tracker](https://github.com/yourusername/pyccsl/issues)
-- [Releases](https://github.com/yourusername/pyccsl/releases)
+- [Issue Tracker](https://github.com/wolfdenpublishing/pyccsl/issues)
+- [Releases](https://github.com/wolfdenpublishing/pyccsl/releases)
 
 ---
 
