@@ -12,7 +12,7 @@ import subprocess
 from datetime import datetime, timedelta
 import argparse
 
-__version__ = "0.1.3"
+__version__ = "0.1.4"
 
 # Pricing data embedded from https://docs.anthropic.com/en/docs/about-claude/pricing
 # All prices in USD per million tokens
@@ -252,6 +252,45 @@ def get_model_pricing(model_id):
         return PRICING_DATA[model_id]
     return None
 
+def format_output(config, model_info, input_data):
+    """Format the output based on selected fields and configuration.
+    
+    Args:
+        config: Configuration dict from parse_arguments()
+        model_info: Model information dict with display_name and id
+        input_data: Full input JSON data
+    
+    Returns:
+        Formatted string for output
+    """
+    output_parts = []
+    
+    # Get separator based on style
+    if config["style"] == "pipes":
+        separator = " | "
+    elif config["style"] == "arrows":
+        separator = " → "
+    elif config["style"] == "dots":
+        separator = " · "
+    elif config["style"] == "powerline":
+        separator = " > "  # Will be enhanced in future phases
+    else:  # simple
+        separator = " > "
+    
+    # Process fields in FIELD_ORDER sequence
+    for field in FIELD_ORDER:
+        if field not in config["fields"]:
+            continue
+            
+        # For now, only handle model field
+        if field == "model":
+            output_parts.append(model_info["display_name"])
+        # Other fields will be implemented in future phases
+        # For now, skip them silently
+    
+    # Join parts with separator
+    return separator.join(output_parts)
+
 def main():
     """Main entry point."""
     # Parse arguments
@@ -263,8 +302,9 @@ def main():
     # Extract model info
     model_info = extract_model_info(input_data)
     
-    # For now, just print the model name
-    print(model_info["display_name"])
+    # Format and output
+    output = format_output(config, model_info, input_data)
+    print(output)
     
     return 0
 
