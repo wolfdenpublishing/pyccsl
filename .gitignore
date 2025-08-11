@@ -1,0 +1,8 @@
+.attic/
+.bin/
+.checkpoints/
+.claude/
+.context/
+.sbsi/
+CLAUDE.md
+pricing.json

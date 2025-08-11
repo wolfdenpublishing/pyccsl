@@ -1,0 +1,365 @@
+{
+  "description": "Claude Code transcript file schema",
+  "enum_values": {
+    "entry.message.model": [
+      "<synthetic>",
+      "claude-3-5-haiku-20241022",
+      "claude-3-5-sonnet-20240620",
+      "claude-3-5-sonnet-20241022",
+      "claude-3-7-sonnet-20250219",
+      "claude-3-haiku-20240307",
+      "claude-opus-4-1-20250805",
+      "claude-opus-4-20250514",
+      "claude-sonnet-4-20250514"
+    ],
+    "entry.message.role": [
+      "assistant",
+      "user"
+    ],
+    "entry.message.stop_reason": [
+      "end_turn",
+      "stop_sequence",
+      "tool_use"
+    ],
+    "entry.message.type": [
+      "message"
+    ],
+    "entry.message.usage.service_tier": [
+      "standard"
+    ],
+    "entry.toolUseResult.content[].type": [
+      "text"
+    ],
+    "entry.toolUseResult.type": [
+      "text"
+    ],
+    "entry.toolUseResult.usage.service_tier": [
+      "standard"
+    ],
+    "entry.type": [
+      "assistant",
+      "summary",
+      "user"
+    ],
+    "entry.userType": [
+      "external"
+    ]
+  },
+  "items": {
+    "properties": {
+      "cwd": {
+        "type": "string"
+      },
+      "gitBranch": {
+        "type": "string"
+      },
+      "isApiErrorMessage": {
+        "type": "boolean"
+      },
+      "isCompactSummary": {
+        "type": "boolean"
+      },
+      "isMeta": {
+        "type": "boolean"
+      },
+      "isSidechain": {
+        "type": "boolean"
+      },
+      "leafUuid": {
+        "type": "string"
+      },
+      "message": {
+        "properties": {
+          "content": {
+            "type": {
+              "oneOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "array"
+                }
+              ]
+            }
+          },
+          "id": {
+            "type": "string"
+          },
+          "model": {
+            "type": "string"
+          },
+          "role": {
+            "type": "string"
+          },
+          "stop_reason": {
+            "oneOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "type": {
+              "oneOf": [
+                {
+                  "type": "null"
+                },
+                {
+                  "type": "string"
+                }
+              ]
+            }
+          },
+          "stop_sequence": {
+            "oneOf": [
+              {
+                "type": {
+                  "oneOf": [
+                    {
+                      "type": "null"
+                    },
+                    {
+                      "type": "string"
+                    }
+                  ]
+                }
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "type": {
+              "oneOf": [
+                {
+                  "type": "null"
+                },
+                {
+                  "type": "string"
+                }
+              ]
+            }
+          },
+          "type": {
+            "type": "string"
+          },
+          "usage": {
+            "properties": {
+              "cache_creation_input_tokens": {
+                "type": "integer"
+              },
+              "cache_read_input_tokens": {
+                "type": "integer"
+              },
+              "input_tokens": {
+                "type": "integer"
+              },
+              "output_tokens": {
+                "type": "integer"
+              },
+              "server_tool_use": {
+                "properties": {
+                  "web_search_requests": {
+                    "type": "integer"
+                  }
+                },
+                "type": "object"
+              },
+              "service_tier": {
+                "oneOf": [
+                  {
+                    "type": "string"
+                  },
+                  {
+                    "type": "null"
+                  }
+                ],
+                "type": {
+                  "oneOf": [
+                    {
+                      "type": "null"
+                    },
+                    {
+                      "type": "string"
+                    }
+                  ]
+                }
+              }
+            },
+            "type": "object"
+          }
+        },
+        "type": "object"
+      },
+      "parentUuid": {
+        "oneOf": [
+          {
+            "type": {
+              "oneOf": [
+                {
+                  "type": "null"
+                },
+                {
+                  "type": "string"
+                }
+              ]
+            }
+          },
+          {
+            "type": "null"
+          }
+        ],
+        "type": "string"
+      },
+      "requestId": {
+        "type": "string"
+      },
+      "sessionId": {
+        "type": "string"
+      },
+      "summary": {
+        "type": "string"
+      },
+      "timestamp": {
+        "type": "string"
+      },
+      "toolUseResult": {
+        "properties": {
+          "content": {
+            "items": {
+              "properties": {
+                "text": {
+                  "type": "string"
+                },
+                "type": {
+                  "type": "string"
+                }
+              },
+              "type": "object"
+            },
+            "type": "array"
+          },
+          "file": {
+            "properties": {
+              "content": {
+                "type": "string"
+              },
+              "filePath": {
+                "type": "string"
+              },
+              "numLines": {
+                "type": "integer"
+              },
+              "startLine": {
+                "type": "integer"
+              },
+              "totalLines": {
+                "type": "integer"
+              }
+            },
+            "type": "object"
+          },
+          "newTodos": {
+            "items": {
+              "properties": {
+                "content": {
+                  "type": "string"
+                },
+                "id": {
+                  "type": "string"
+                },
+                "priority": {
+                  "type": "string"
+                },
+                "status": {
+                  "type": "string"
+                }
+              },
+              "type": "object"
+            },
+            "type": "array"
+          },
+          "oldTodos": {
+            "items": {
+              "properties": {
+                "content": {
+                  "type": "string"
+                },
+                "id": {
+                  "type": "string"
+                },
+                "priority": {
+                  "type": "string"
+                },
+                "status": {
+                  "type": "string"
+                }
+              },
+              "type": "object"
+            },
+            "type": "array"
+          },
+          "totalDurationMs": {
+            "type": "integer"
+          },
+          "totalTokens": {
+            "type": "integer"
+          },
+          "totalToolUseCount": {
+            "type": "integer"
+          },
+          "type": {
+            "type": "string"
+          },
+          "usage": {
+            "properties": {
+              "cache_creation_input_tokens": {
+                "type": "integer"
+              },
+              "cache_read_input_tokens": {
+                "type": "integer"
+              },
+              "input_tokens": {
+                "type": "integer"
+              },
+              "output_tokens": {
+                "type": "integer"
+              },
+              "service_tier": {
+                "type": "string"
+              }
+            },
+            "type": "object"
+          },
+          "wasInterrupted": {
+            "type": "boolean"
+          }
+        },
+        "type": {
+          "oneOf": [
+            {
+              "type": "object"
+            },
+            {
+              "type": "string"
+            }
+          ]
+        }
+      },
+      "type": {
+        "type": "string"
+      },
+      "userType": {
+        "type": "string"
+      },
+      "uuid": {
+        "type": "string"
+      },
+      "version": {
+        "type": "string"
+      }
+    },
+    "type": "object"
+  },
+  "type": "array"
+}
