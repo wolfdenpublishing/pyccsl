@@ -12,7 +12,7 @@ import subprocess
 from datetime import datetime, timedelta
 import argparse
 
-__version__ = "0.2.5"
+__version__ = "0.2.6"
 
 # Pricing data embedded from https://docs.anthropic.com/en/docs/about-claude/pricing
 # All prices in USD per million tokens
@@ -324,17 +324,80 @@ def calculate_token_usage(transcript_entries):
     
     return totals
 
-def format_output(config, model_info, input_data):
+def get_model_from_transcript(transcript_entries):
+    """Extract the model ID from transcript entries.
+    
+    Looks for the first assistant message with a model ID.
+    
+    Args:
+        transcript_entries: List of parsed transcript entries
+    
+    Returns:
+        Model ID string or None if not found
+    """
+    for entry in transcript_entries:
+        if entry.get("type") == "assistant" and "message" in entry:
+            model_id = entry["message"].get("model")
+            if model_id:
+                return model_id
+    return None
+
+def calculate_cost(token_totals, model_id):
+    """Calculate session cost from token totals and model pricing.
+    
+    Args:
+        token_totals: Dict with input_tokens, output_tokens, 
+                      cache_creation_tokens, cache_read_tokens
+        model_id: Model ID string for pricing lookup
+    
+    Returns:
+        Cost in dollars (float) or 0.0 if model not found
+    """
+    pricing = get_model_pricing(model_id)
+    if not pricing:
+        return 0.0
+    
+    # Calculate cost using the formula (all rates are per million tokens)
+    # Using 5-minute cache write rate (Claude Code default)
+    cost = (
+        token_totals.get("input_tokens", 0) * pricing.get("input", 0) +
+        token_totals.get("cache_creation_tokens", 0) * pricing.get("cache_write_5m", 0) +
+        token_totals.get("cache_read_tokens", 0) * pricing.get("cache_read", 0) +
+        token_totals.get("output_tokens", 0) * pricing.get("output", 0)
+    ) / 1_000_000
+    
+    return cost
+
+def format_cost(cost):
+    """Format cost as dollars or cents.
+    
+    Args:
+        cost: Cost in dollars (float)
+    
+    Returns:
+        Formatted string (e.g., "$1.25" or "48¢")
+    """
+    if cost >= 1.0:
+        return f"${cost:.2f}"
+    else:
+        cents = int(round(cost * 100))
+        return f"{cents}¢"
+
+def format_output(config, model_info, input_data, metrics=None):
     """Format the output based on selected fields and configuration.
     
     Args:
         config: Configuration dict from parse_arguments()
         model_info: Model information dict with display_name and id
         input_data: Full input JSON data
+        metrics: Dict with calculated metrics (cost, tokens, etc.)
     
     Returns:
         Formatted string for output
     """
+    if metrics is None:
+        metrics = {}
+    
     output_parts = []
     
     # Get separator based on style
@@ -354,9 +417,11 @@ def format_output(config, model_info, input_data):
         if field not in config["fields"]:
             continue
             
-        # For now, only handle model field
+        # Handle different fields
         if field == "model":
             output_parts.append(model_info["display_name"])
+        elif field == "cost" and "cost_formatted" in metrics:
+            output_parts.append(metrics["cost_formatted"])
         # Other fields will be implemented in future phases
         # For now, skip them silently
     
@@ -381,11 +446,21 @@ def main():
     # Calculate metrics from transcript
     metrics = {}
     if transcript_entries:
+        # Calculate token usage
         token_totals = calculate_token_usage(transcript_entries)
         metrics.update(token_totals)
+        
+        # Get model ID (from transcript or input)
+        model_id = get_model_from_transcript(transcript_entries) or model_info.get("id")
+        
+        # Calculate cost
+        if model_id:
+            cost = calculate_cost(token_totals, model_id)
+            metrics["cost"] = cost
+            metrics["cost_formatted"] = format_cost(cost)
     
-    # Format and output
-    output = format_output(config, model_info, input_data)
+    # Format and output (pass metrics for field display)
+    output = format_output(config, model_info, input_data, metrics)
     print(output)
     
     return 0
