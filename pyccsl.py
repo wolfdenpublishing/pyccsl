@@ -19,7 +19,7 @@ import subprocess
 from datetime import datetime, timedelta
 import argparse
 
-__version__ = "0.5.21"
+__version__ = "0.5.22"
 
 # Pricing data embedded from https://docs.anthropic.com/en/docs/about-claude/pricing
 # All prices in USD per million tokens
@@ -1197,8 +1197,11 @@ def main():
     
     # Format and output (pass metrics for field display)
     output = format_output(config, model_info, input_data, metrics)
-    # Always ensure we end with a reset to prevent terminal color bleed
-    print(output + RESET)
+    # Only add reset if colors were used (to prevent terminal color bleed)
+    if config["theme"] != "none":
+        print(output + RESET)
+    else:
+        print(output)
     
     return 0
 
