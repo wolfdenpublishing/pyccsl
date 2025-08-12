@@ -59,7 +59,7 @@
 
 ---
 
-## Available Themes
+## Selected  Themes
 
 <div align="center">
 <table>
@@ -116,7 +116,7 @@ Input tokens displayed as (base, cache_write, cache_read) for complete visibilit
 ### Separator Styles
 Five different separator options:
 
-![Powerline Style](images/style-powerline.png)
+![Powerline Style](images/style-comparison.png)
 
 Available styles: powerline (requires compatible fonts), simple, arrows, pipes, dots.
 
@@ -191,49 +191,6 @@ Edit the `~/.claude/pyccsl.env` file at any time to dynamically modify the statu
 
 ---
 
-## Usage Examples
-
-### Theme Selection
-
-```bash
-# Nord theme
-python3 pyccsl.py --theme nord
-
-# Dracula theme
-python3 pyccsl.py --theme dracula
-
-# No colors
-python3 pyccsl.py --theme none
-```
-
-### Field Selection
-
-```bash
-# Minimal: model and cost only
-python3 pyccsl.py model,cost
-
-# Performance metrics
-python3 pyccsl.py badge,model,perf-all-metrics,cost
-
-# Token details
-python3 pyccsl.py model,input,output,tokens
-```
-
-### Separator Styles
-
-```bash
-# Powerline arrows (requires Powerline fonts)
-python3 pyccsl.py --style powerline
-
-# Arrow separators
-python3 pyccsl.py --style arrows
-
-# Dot separators
-python3 pyccsl.py --style dots
-```
-
----
-
 ## Configuration Examples
 
 <details>
@@ -264,21 +221,6 @@ Displays all performance metrics for session analysis and cache optimization.
 ```
 
 Shows detailed token counts and costs with full number formatting.
-</details>
-
-<details>
-<summary><b>Git Integration</b></summary>
-
-```json
-{
-  "statusLine": {
-    "type": "command",
-    "command": "python3 ~/.claude/pyccsl.py folder,git,model,cost --style powerline"
-  }
-}
-```
-
-Includes git branch and status with powerline separators.
 </details>
 
 <details>
@@ -333,57 +275,6 @@ The env file is bash-compatible, so you can also source it: `source ~/.pyCCsl.en
 
 ---
 
-## Field Reference
-
-All fields display in canonical order regardless of specification:
-
-| Field | Display | Description |
-|-------|---------|-------------|
-| `badge` | `●○○○` | Performance indicator (4 levels) |
-| `folder` | `my-project` | Current directory name |
-| `git` | `main ●` | Branch and modification status |
-| `model` | `Opus` | Claude model name |
-| `perf-cache-rate` | `⚡85%` | Cache hit percentage |
-| `perf-response-time` | `⏱1.5s` | Average response time |
-| `perf-session-time` | `🕐45m` | Session duration |
-| `perf-message-count` | `💬12` | Number of messages |
-| `perf-all-metrics` | All above | Combined metrics display |
-| `input` | `↑ (53,54.8K,251K)` | Input tokens (base, cache_write, cache_read) |
-| `output` | `↓ 2.6K` | Output token count |
-| `tokens` | `⧉ 57.5K` | Non-cached tokens (actual usage) |
-| `cost` | `48¢` or `$1.25` | Session cost |
-
----
-
-## Configuration Options
-
-### Command-Line Options
-
-| Option | Values | Description |
-|--------|--------|-------------|
-| `--theme` | `default`, `solarized`, `nord`, `dracula`, `gruvbox`, `tokyo`, `catppuccin`, `minimal`, `none` | Color theme |
-| `--numbers` | `compact`, `full`, `raw` | Number formatting |
-| `--style` | `simple`, `powerline`, `arrows`, `pipes`, `dots` | Separator style |
-| `--no-emoji` | - | Disable all emoji |
-| `--perf-cache` | `GREEN,YELLOW,ORANGE` | Cache thresholds (%) |
-| `--perf-response` | `GREEN,YELLOW,ORANGE` | Response thresholds (seconds) |
-
-### Environment Variables
-
-Set persistent defaults without command-line arguments:
-
-```bash
-export PYCCSL_THEME="nord"
-export PYCCSL_NUMBERS="full"
-export PYCCSL_STYLE="powerline"
-export PYCCSL_NO_EMOJI="true"
-export PYCCSL_FIELDS="badge,model,cost"
-export PYCCSL_PERF_CACHE="70,50,30"
-export PYCCSL_PERF_RESPONSE="2,4,6"
-```
-
----
-
 ## Technical Details
 
 ### Architecture
@@ -432,54 +323,6 @@ All cache writes assumed to use 5-minute TTL (Claude Code default).
 
 ---
 
-## Development
-
-### Project Structure
-
-```
-pyCCsl/
-├── pyccsl.py             # Main script (single file)
-├── pyCCsl.md             # User documentation
-├── CLAUDE.md             # Development guidelines
-├── README.md             # This file
-├── screenshots.md        # Screenshot checklist
-├── schema.json           # Transcript schema
-├── test_transcript.jsonl # Test data
-├── images/               # Screenshots
-└── .sbsi/                # Development buildprints
-    ├── P1-core-foundation.md
-    ├── P2-transcript-analysis.md
-    ├── P3-display-fields.md
-    └── P4-styling-polish.md
-```
-
-### Development Methodology
-
-The project uses RPIV (Research, Plan, Implement, Verify) methodology with SBSI (Step-By-Step Implementation) buildprints. Each development phase is documented in `.sbsi/` with verifiable tasks and developer signoff requirements.
-
-### Testing
-
-```bash
-# Create test input
-echo '{"model":{"id":"claude-3-5-sonnet-20241022","display_name":"Sonnet 3.5"},"transcript_path":"test_transcript.jsonl"}' > test_input.json
-
-# Test various configurations
-cat test_input.json | python3 pyccsl.py
-cat test_input.json | python3 pyccsl.py --theme nord --style powerline
-cat test_input.json | python3 pyccsl.py badge,model,perf-all-metrics,cost
-```
-
-### Contributing
-
-Guidelines for contributions:
-1. Maintain single-file architecture
-2. No external dependencies
-3. Follow existing code style
-4. Update relevant SBSI documents
-5. Test with various Claude Code transcripts
-
----
-
 ## Known Issues
 
 ### Terminal Color Bleed
@@ -492,7 +335,6 @@ When Claude Code displays system messages (e.g., "Context left until auto-compac
 - Clear the terminal with `clear` or `reset` when this occurs
 
 **Note**: This is a Claude Code limitation where system messages take priority and truncate custom status lines without properly closing escape sequences. There is no fix available from the pyCCsl side.
-
 
 ---
 
@@ -510,16 +352,6 @@ MIT License - See [LICENSE](LICENSE) file for details
 
 ---
 
-## Version History
-
-- **v0.4.17** - Complete emoji handling with --no-emoji flag
-- **v0.4.16** - Powerline separators and complete theming
-- **v0.3.0** - Full display fields implementation
-- **v0.2.x** - Transcript analysis and cost calculations
-- **v0.1.0** - Initial core foundation
-
----
-
 ## Links
 
 - [Claude Code Documentation](https://docs.anthropic.com/en/docs/claude-code)
@@ -529,9 +361,5 @@ MIT License - See [LICENSE](LICENSE) file for details
 ---
 
 <div align="center">
-
-**pyCCsl** - *pronounced "pixel"*
-
-Python Claude Code Status Line
-
+**pyCCsl** - *pronounced "pixel"* - Made with ❤️ for the Claude Code Community
 </div>

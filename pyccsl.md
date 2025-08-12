@@ -8,25 +8,60 @@
 
 ## Installation
 
-1. Copy `pyccsl.py` to your Claude home directory:
-   ```bash
-   cp pyccsl.py ~/.claude/
-   ```
-
-2. Add to your Claude Code settings file (`~/.claude/settings.json`):
-   ```json
-   {
-     "statusLine": {
-       "type": "command",
-       "command": "python3 ~/.claude/pyccsl.py"
-     }
-   }
-   ```
-
-## Prerequisites
-
+### Requirements
 - Python 3.8 or higher
-- No external dependencies (uses only Python standard library modules: `sys`, `json`, `os`, `subprocess`, `datetime`, `argparse`)
+- Claude Code
+
+### Quick Setup
+
+1. Download the script:
+```bash
+curl -O https://raw.githubusercontent.com/wolfdenpublishing/pyccsl/main/pyccsl.py
+chmod +x pyccsl.py
+```
+
+2. Copy to Claude directory:
+```bash
+cp pyccsl.py ~/.claude/
+```
+
+3. Configure Claude Code by editing `~/.claude/settings.json`:
+```json
+{
+  "statusLine": {
+    "type": "command",
+    "command": "python3 ~/.claude/pyccsl.py"
+  }
+}
+```
+
+That's it! Restart Claude Code and you should have the default status line.
+
+### Recommended Setup
+
+Use the `--env` option and you can change your status line at any time *while Claude Code is running.* (These instructions assume you have completed the Quick Setup steps above.)
+
+1. Download the example .env file:
+```json
+curl -O https://raw.githubusercontent.com/wolfdenpublishing/pyccsl/main/pyccsl.env.example
+```
+
+2. Copy to Claude directory:
+```bash
+cp pyccsl.env.example ~/.claude/pyccls.env
+```
+
+3. Modify the hook command in `~/.claude/settings.json`:
+```json
+{
+  "statusLine": {
+    "type": "command",
+    "command": "python3 ~/.claude/pyccsl.py --env ~/.claude/pyccsl.env"
+  }
+}
+```
+
+Edit the `~/.claude/pyccsl.env` file at any time to dynamically modify the status line of your *active* Claude Code sessions!
 
 ## Usage
 
