@@ -189,6 +189,62 @@ cp pyccsl.env.example ~/.claude/pyccls.env
 
 Edit the `~/.claude/pyccsl.env` file at any time to dynamically modify the status line of your *active* Claude Code sessions!
 
+### Powerline Fonts (Optional)
+
+The `--style powerline` option creates beautiful arrow separators, but requires Powerline-compatible fonts to display correctly.
+
+<details>
+<summary><b>Installing Powerline Fonts</b></summary>
+
+#### macOS
+```bash
+# Using Homebrew
+brew tap homebrew/cask-fonts
+brew install --cask font-meslo-lg-nerd-font
+
+# Or download directly
+git clone https://github.com/powerline/fonts.git --depth=1
+cd fonts
+./install.sh
+cd ..
+rm -rf fonts
+```
+
+#### Linux
+```bash
+# Ubuntu/Debian
+sudo apt-get install fonts-powerline
+
+# Or manually install
+git clone https://github.com/powerline/fonts.git --depth=1
+cd fonts
+./install.sh
+cd ..
+rm -rf fonts
+```
+
+#### Windows
+```powershell
+# Using Scoop
+scoop bucket add nerd-fonts
+scoop install Meslo-NF
+
+# Or manually:
+# 1. Download fonts from https://github.com/powerline/fonts
+# 2. Right-click on .ttf files and select "Install"
+```
+
+#### Terminal Configuration
+After installing, configure your terminal to use a Powerline font:
+- **VS Code Terminal**: Settings → Terminal → Font Family → "MesloLGS NF" or "DejaVu Sans Mono for Powerline"
+- **iTerm2 (macOS)**: Preferences → Profiles → Text → Font → Select a Powerline font
+- **Windows Terminal**: Settings → Profiles → Font face → Select a Powerline font
+- **Linux Terminal**: Edit → Preferences → Custom font → Select a Powerline font
+
+**Note**: If Powerline fonts aren't installed or configured, the arrows will appear as boxes (□) or question marks. Use `--style simple` (default) or other styles if you prefer not to install special fonts.
+
+</details>
+
 ---
 
 ## Configuration Examples
