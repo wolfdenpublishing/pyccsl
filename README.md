@@ -168,7 +168,7 @@ That's it! Restart Claude Code and you should have the default status line.
 Use the `--env` option and you can change your status line at any time *while Claude Code is running.* (These instructions assume you have completed the Quick Setup steps above.)
 
 1. Download the example .env file:
-```json
+```bash
 curl -O https://raw.githubusercontent.com/wolfdenpublishing/pyccsl/main/pyccsl.env.example
 ```
 
