@@ -174,7 +174,7 @@ curl -O https://raw.githubusercontent.com/wolfdenpublishing/pyccsl/main/pyccsl.e
 
 2. Copy to Claude directory:
 ```bash
-cp pyccsl.env.example ~/.claude/pyccls.env
+cp pyccsl.env.example ~/.claude/pyccsl.env
 ```
 
 3. Modify the hook command in `~/.claude/settings.json`:
