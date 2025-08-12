@@ -14,7 +14,7 @@
 
 *Real-time metrics • Cost tracking • Git status • Token usage • 9 themes • Zero dependencies*
 
-📖 **[User Guide](pyCCsl.md)** | 🔗 **[GitHub](https://github.com/wolfdenpublishing/pyccsl)** | 📝 **[Issues](https://github.com/wolfdenpublishing/pyccsl/issues)**
+📖 **[User Guide](pyccsl.md)** | 🔗 **[GitHub](https://github.com/wolfdenpublishing/pyccsl)** | 📝 **[Issues](https://github.com/wolfdenpublishing/pyccsl/issues)**
 
 </div>
 
